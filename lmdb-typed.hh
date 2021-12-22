@@ -1,18 +1,11 @@
 #pragma once
-#include <iostream>
 #include "lmdb-safe.hh"
-#include <boost/archive/binary_oarchive.hpp>
-#include <boost/archive/binary_iarchive.hpp>
-#include <boost/serialization/vector.hpp>
-#include <boost/serialization/string.hpp>
-#include <boost/serialization/utility.hpp>
+
+#include <reflective-rapidjson/lib/binary/reflector.h>
+
 #include <boost/iostreams/stream.hpp>
 #include <boost/iostreams/stream_buffer.hpp>
 #include <boost/iostreams/device/back_inserter.hpp>
-#include <sstream>
-// using std::cout;
-// using std::endl;
-
 
 /* 
    Open issues:
@@ -41,30 +34,22 @@ unsigned int MDBGetMaxID(MDBRWTransaction& txn, MDBDbi& dbi);
 template<typename T>
 std::string serToString(const T& t)
 {
-  std::string serial_str;
-  boost::iostreams::back_insert_device<std::string> inserter(serial_str);
-  boost::iostreams::stream<boost::iostreams::back_insert_device<std::string> > s(inserter);
-  boost::archive::binary_oarchive oa(s, boost::archive::no_header | boost::archive::no_codecvt);
-  
-  oa << t;
-  return serial_str;
+  auto ret = std::string();
+  auto inserter = boost::iostreams::back_insert_device<std::string>(ret);
+  auto stream = boost::iostreams::stream<boost::iostreams::back_insert_device<std::string>>(inserter);
+  auto deserializer = ReflectiveRapidJSON::BinaryReflector::BinarySerializer(&stream);
+  deserializer.write(t);
+  return ret;
 }
 
 template<typename T>
 void serFromString(const string_view& str, T& ret)
 {
+  auto source = boost::iostreams::array_source(str.data(), str.size());
+  auto stream = boost::iostreams::stream<boost::iostreams::array_source>(source);
+  auto serializer = ReflectiveRapidJSON::BinaryReflector::BinaryDeserializer(&stream);
   ret = T();
-
-  boost::iostreams::array_source source(&str[0], str.size());
-  boost::iostreams::stream<boost::iostreams::array_source> stream(source);
-  boost::archive::binary_iarchive in_archive(stream, boost::archive::no_header|boost::archive::no_codecvt);
-  in_archive >> ret;
-
-  /*
-  std::istringstream istr{str};
-  boost::archive::binary_iarchive oi(istr,boost::archive::no_header|boost::archive::no_codecvt );
-  oi >> ret;
-  */
+  serializer.read(ret);
 }
 
 
