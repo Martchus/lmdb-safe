@@ -340,6 +340,11 @@ public:
         return &d_t;
       }
 
+      T &value()
+      {
+        return d_t;
+      }
+
       // implements generic ++ or --
       iter_t& genoperator(MDB_cursor_op dupop, MDB_cursor_op op)
       {
