@@ -292,7 +292,9 @@ void MDBROTransactionImpl::commit()
   // if d_txn is non-nullptr here, either the transaction object was invalidated earlier (e.g. by moving from it), or it is an RW transaction which has already cleaned up the d_txn pointer (with an abort).
   if (d_txn) {
     d_parent->decROTX();
-    mdb_txn_commit(d_txn); // this appears to work better than abort for r/o database opening
+    if (const auto rc = mdb_txn_commit(d_txn)) { // this appears to work better than abort for r/o database opening
+      throw std::runtime_error("Error comitting transaction: " + MDBError(rc));
+    }
     d_txn = nullptr;
   }
 }
