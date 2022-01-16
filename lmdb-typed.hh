@@ -57,14 +57,14 @@ template <class T, class Enable>
 inline std::string keyConv(const T& t);
 
 template <class T, typename std::enable_if<std::is_arithmetic<T>::value,T>::type* = nullptr>
-inline std::string keyConv(const T& t)
+inline string_view keyConv(const T& t)
 {
-  return std::string(reinterpret_cast<const char *>(&t), sizeof(t));
+  return string_view(reinterpret_cast<const char *>(&t), sizeof(t));
 }
 
 // this is how to override specific types.. it is ugly 
 template<class T, typename std::enable_if<std::is_same<T, std::string>::value,T>::type* = nullptr>
-inline std::string keyConv(const T& t)
+inline string_view keyConv(const T& t)
 {
   return t;
 }
@@ -469,7 +469,7 @@ public:
     {
       typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
-      std::string keystr = keyConv(key);
+      const auto keystr = keyConv(key);
       MDBInVal in(keystr);
       MDBOutVal out, id;
       out.d_mdbval = in.d_mdbval;
@@ -501,7 +501,7 @@ public:
     {
       typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
-      std::string keyString=keyConv(key);
+      const auto keyString=keyConv(key);
       MDBInVal in(keyString);
       MDBOutVal out, id;
       out.d_mdbval = in.d_mdbval;
@@ -520,7 +520,7 @@ public:
     {
       typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
-      std::string keyString=keyConv(key);
+      const auto keyString=keyConv(key);
       MDBInVal in(keyString);
       MDBOutVal out, id;
       out.d_mdbval = in.d_mdbval;
