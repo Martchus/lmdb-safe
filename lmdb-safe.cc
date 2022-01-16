@@ -25,14 +25,14 @@ MDBDbi::MDBDbi(MDB_env* env, MDB_txn* txn, const string_view dbname, unsigned in
   // Database names are keys in the unnamed database, and may be read but not written.
 }
 
-MDBEnv::MDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode)
+MDBEnv::MDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs)
 {
   mdb_env_create(&d_env);   
   if(const auto rc = mdb_env_set_mapsize(d_env, 16ULL * 4096 * 244140ULL)) { // 4GB
     throw std::runtime_error("setting map size: " + MDBError(rc));
   }
   // Various other options may also need to be set before opening the handle, e.g. mdb_env_set_mapsize(), mdb_env_set_maxreaders(), mdb_env_set_maxdbs(),
-  if (const auto rc = mdb_env_set_maxdbs(d_env, 128)) {
+  if (const auto rc = mdb_env_set_maxdbs(d_env, maxDBs)) {
     throw std::runtime_error("setting maxdbs: " + MDBError(rc));
   }
 
@@ -80,7 +80,7 @@ int MDBEnv::getROTX()
 }
 
 
-std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode)
+std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs)
 {
   struct Value
   {
@@ -97,7 +97,7 @@ std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mod
       throw std::runtime_error("Unable to stat prospective mdb database: "+string(strerror(errno)));
     else {
       std::lock_guard<std::mutex> l(mut);
-      auto fresh = std::make_shared<MDBEnv>(fname, flags, mode);
+      auto fresh = std::make_shared<MDBEnv>(fname, flags, mode, maxDBs);
       if(stat(fname, &statbuf))
         throw std::runtime_error("Unable to stat prospective mdb database: "+string(strerror(errno)));
       auto key = std::tie(statbuf.st_dev, statbuf.st_ino);
@@ -122,7 +122,7 @@ std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mod
     }
   }
 
-  auto fresh = std::make_shared<MDBEnv>(fname, flags, mode);
+  auto fresh = std::make_shared<MDBEnv>(fname, flags, mode, maxDBs);
   s_envs[key] = {fresh, flags};
   
   return fresh;

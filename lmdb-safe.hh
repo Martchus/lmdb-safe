@@ -69,7 +69,7 @@ using MDBRWTransaction = std::unique_ptr<MDBRWTransactionImpl>;
 class MDBEnv
 {
 public:
-  MDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode);
+  MDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs);
 
   ~MDBEnv()
   {
@@ -102,7 +102,7 @@ private:
   std::map<std::thread::id, int> d_ROtransactionsOut;
 };
 
-std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode);
+std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs = 128);
 
 
 
