@@ -28,13 +28,13 @@ MDBDbi::MDBDbi(MDB_env* env, MDB_txn* txn, const string_view dbname, unsigned in
 MDBEnv::MDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode)
 {
   mdb_env_create(&d_env);   
-  if(mdb_env_set_mapsize(d_env, 16ULL*4096*244140ULL)) // 4GB
-    throw std::runtime_error("setting map size");
-    /*
-Various other options may also need to be set before opening the handle, e.g. mdb_env_set_mapsize(), mdb_env_set_maxreaders(), mdb_env_set_maxdbs(),
-    */
-
-  mdb_env_set_maxdbs(d_env, 128);
+  if(const auto rc = mdb_env_set_mapsize(d_env, 16ULL * 4096 * 244140ULL)) { // 4GB
+    throw std::runtime_error("setting map size: " + MDBError(rc));
+  }
+  // Various other options may also need to be set before opening the handle, e.g. mdb_env_set_mapsize(), mdb_env_set_maxreaders(), mdb_env_set_maxdbs(),
+  if (const auto rc = mdb_env_set_maxdbs(d_env, 128)) {
+    throw std::runtime_error("setting maxdbs: " + MDBError(rc));
+  }
 
   // we need MDB_NOTLS since we rely on its semantics
   if(int rc=mdb_env_open(d_env, fname, flags | MDB_NOTLS, mode)) {
