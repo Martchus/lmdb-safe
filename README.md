@@ -333,7 +333,7 @@ In the more interesting case where we inserted more DNS records, we could
 iterate over all items with `domain_id = 4` as follows:
 
 ```
-for(auto iter = txn.find<1>(4): iter != txn.end(); ++iter) {
+for(auto [iter, end] = txn.equal_range<1>(4): iter != end; ++iter) {
 	cout << iter->qname << "\n";
 }
 ```
