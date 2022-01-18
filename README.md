@@ -264,22 +264,14 @@ struct DNSResourceRecord
 ```
 
 And we want to do so based on the `qname`, `domain_id` or `ordername`
-fields. First, we have to make sure DNSResourceRecord can serialize itself
-to a string:
-
-```
-template<class Archive>
-void serialize(Archive & ar, DNSResourceRecord& g, const unsigned int version)
-{
-  ar & g.qtype;
-  ar & g.qname;
-  ar & g.content;
-  ar & g.ttl;
-  ar & g.domain_id;
-  ar & g.ordername;
-  ar & g.auth;
-}
-```
+fields. First, we have to make sure DNSResourceRecord can be (de)serialized
+to/from a string. For that you need to implement `serToString(const T& t)` and
+`serFromString(const string_view& str, T& ret)` like it is shown in
+`lmdb-reflective.hh` which uses
+[Reflective RapidJSON](https://github.com/Martchus/reflective-rapidjson)'s
+binary (de)serializer to ease that task. You can also use Boost.Serialization.
+It might also be helpful to utilize Boost.Hana, e.g. in combination with the
+previously mentioned libraries.
 
 Next up, we need to define our "Object Relational Mapper":
 
