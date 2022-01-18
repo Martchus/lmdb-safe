@@ -101,7 +101,7 @@ transaction is aborted automatically. To commit or abort, use `commit()` or
 
 LMDB is so fast because it does not copy data unless it really needs to.
 Memory bandwidth is a huge determinant of performance on modern CPUs. This
-wrapper agrees, and using modern C++ makes it possible to seemlessly use
+wrapper agrees, and using modern C++ makes it possible to seamlessly use
 'views' on data without copying them. Using these techniques, the call to
 `txn.put()` sets the "lmdb" string to "great", without making additional
 copies. 
@@ -134,8 +134,8 @@ For example, to store `double` values for 64 bit IDs:
 ```
 
 Behind the scenes, the `id` and `score` values are wrapped by `MDBInVal`
-which converts these values into byte strings. To retrieve thise values
-works similary:
+which converts these values into byte strings. To retrieve these values
+works similarly:
 
 ```
   auto txn = env->getRWTransaction();
