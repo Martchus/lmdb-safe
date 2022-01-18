@@ -1,5 +1,7 @@
 #include "lmdb-typed.hh"
 
+namespace LMDBSafe {
+
 unsigned int MDBGetMaxID(MDBRWTransaction& txn, MDBDbi& dbi)
 {
   auto cursor = txn->getRWCursor(dbi);
@@ -11,4 +13,4 @@ unsigned int MDBGetMaxID(MDBRWTransaction& txn, MDBDbi& dbi)
   return maxid;
 }
 
-
+}

@@ -3,6 +3,7 @@
 #include <iostream>
 
 using namespace std;
+using namespace LMDBSafe;
 
 void countDB(MDBEnv& env, MDBROTransaction& txn, const std::string& dbname)
 {

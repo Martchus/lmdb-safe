@@ -5,6 +5,7 @@
 #include <iostream>
 
 using namespace std;
+using namespace LMDBSafe;
 
 TEST_CASE("Most basic tests", "[mostbasic]") {
   unlink("./tests");

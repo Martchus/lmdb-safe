@@ -1,7 +1,9 @@
 #include "lmdb-safe.hh"
-using namespace std;
 
 #include <unistd.h>
+
+using namespace std;
+using namespace LMDBSafe;
 
 int main()
 {

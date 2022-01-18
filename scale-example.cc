@@ -1,5 +1,7 @@
 #include "lmdb-safe.hh"
+
 using namespace std;
+using namespace LMDBSafe;
 
 struct MDBVal
 {

@@ -10,6 +10,8 @@
 
 using namespace std;
 
+namespace LMDBSafe {
+
 static string MDBError(int rc)
 {
   return mdb_strerror(rc);
@@ -373,4 +375,6 @@ MDBROCursor MDBROTransactionImpl::getROCursor(const MDBDbi &dbi)
     throw std::runtime_error("Error creating RO cursor: "+std::string(mdb_strerror(rc)));
   }
   return MDBROCursor(d_cursors, cursor);
+}
+
 }

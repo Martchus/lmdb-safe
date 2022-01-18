@@ -9,6 +9,7 @@
 #include <vector>
 
 using namespace std;
+using namespace LMDBSafe;
 
 static void closeTest()
 {
@@ -240,3 +241,4 @@ int main(int argc, char** argv)
   txn.commit();
 }
 */
+

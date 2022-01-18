@@ -3,6 +3,7 @@
 #include <cstring>
 
 using namespace std;
+using namespace LMDBSafe;
 
 int main(int argc, char** argv)
 {

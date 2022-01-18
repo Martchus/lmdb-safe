@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <limits>
 
+namespace LMDBSafe {
+
 // apple compiler somehow has string_view even in c++11!
 #ifdef __cpp_lib_string_view
 using std::string_view;
@@ -620,3 +622,4 @@ public:
 
 };
 
+}

@@ -7,10 +7,11 @@
 #include <boost/iostreams/stream_buffer.hpp>
 #include <boost/iostreams/device/back_inserter.hpp>
 
+namespace LMDBSafe {
+
 /* 
    Open issues:
 
-   Everything should go into a namespace
    What is an error? What is an exception?
    could id=0 be magic? ('no such id')
      yes
@@ -716,7 +717,4 @@ private:
   std::string d_name;
 };
 
-
-
-
-
+}
