@@ -29,12 +29,6 @@ using string_view = boost::string_ref;
 #endif
 #endif
 
-
-/* open issues:
- *
- * - missing convenience functions (string_view, string)
- */ 
-
 /*
 The error strategy. Anything that "should never happen" turns into an exception. But things like 'duplicate entry' or 'no such key' are for you to deal with.
  */

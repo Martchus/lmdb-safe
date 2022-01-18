@@ -14,8 +14,6 @@
    What is an error? What is an exception?
    could id=0 be magic? ('no such id')
      yes
-   Is boost the best serializer?
-     good default
    Perhaps use the separate index concept from multi_index
    perhaps get eiter to be of same type so for(auto& a : x) works
      make it more value "like" with unique_ptr
