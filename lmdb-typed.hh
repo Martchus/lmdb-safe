@@ -1,12 +1,6 @@
 #pragma once
 #include "lmdb-safe.hh"
 
-#include <reflective-rapidjson/lib/binary/reflector.h>
-
-#include <boost/iostreams/stream.hpp>
-#include <boost/iostreams/stream_buffer.hpp>
-#include <boost/iostreams/device/back_inserter.hpp>
-
 namespace LMDBSafe {
 
 /* 
@@ -20,38 +14,24 @@ namespace LMDBSafe {
      make it more value "like" with unique_ptr
 */
 
-
 /** Return the highest ID used in a database. Returns 0 for an empty DB.
     This makes us start everything at ID=1, which might make it possible to 
     treat id 0 as special
 */
 unsigned int MDBGetMaxID(MDBRWTransaction& txn, MDBDbi& dbi);
 
-/** This is our serialization interface.
-    You can define your own serToString for your type if you know better
+/** This is the serialization interface.
+    You need to define your these functions for the types you'd like to store.
 */
 template<typename T>
-std::string serToString(const T& t)
-{
-  auto ret = std::string();
-  auto inserter = boost::iostreams::back_insert_device<std::string>(ret);
-  auto stream = boost::iostreams::stream<boost::iostreams::back_insert_device<std::string>>(inserter);
-  auto deserializer = ReflectiveRapidJSON::BinaryReflector::BinarySerializer(&stream);
-  deserializer.write(t);
-  return ret;
-}
+std::string serToString(const T& t);
 
 template<typename T>
-void serFromString(const string_view& str, T& ret)
-{
-  auto source = boost::iostreams::array_source(str.data(), str.size());
-  auto stream = boost::iostreams::stream<boost::iostreams::array_source>(source);
-  auto serializer = ReflectiveRapidJSON::BinaryReflector::BinaryDeserializer(&stream);
-  ret = T();
-  serializer.read(ret);
-}
+void serFromString(const string_view& str, T& ret);
 
-
+/** This is the serialization interface for keys.
+    You need to define your these functions for the types you'd like to use as keys.
+*/
 template <class T, class Enable>
 inline std::string keyConv(const T& t);
 
@@ -61,13 +41,11 @@ inline string_view keyConv(const T& t)
   return string_view(reinterpret_cast<const char *>(&t), sizeof(t));
 }
 
-// this is how to override specific types.. it is ugly 
 template<class T, typename std::enable_if<std::is_same<T, std::string>::value,T>::type* = nullptr>
 inline string_view keyConv(const T& t)
 {
   return t;
 }
-
 
 /** This is a struct that implements index operations, but 
     only the operations that are broadcast to all indexes.
