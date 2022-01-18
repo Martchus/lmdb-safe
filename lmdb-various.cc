@@ -1,10 +1,13 @@
-#include <arpa/inet.h>
-#include <atomic>
-#include <string.h>
 #include "lmdb-safe.hh"
+
+#include <arpa/inet.h>
 #include <unistd.h>
+
+#include <atomic>
+#include <cstring>
 #include <thread>
 #include <vector>
+
 using namespace std;
 
 static void closeTest()

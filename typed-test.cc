@@ -1,7 +1,9 @@
-#include <iostream>
-#include <time.h>
-#include "catch2/catch.hpp"
 #include "lmdb-typed.hh"
+#include "catch2/catch.hpp"
+
+#include <time.h>
+
+#include <iostream>
 
 using namespace std;
 

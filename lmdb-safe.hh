@@ -1,5 +1,7 @@
 #pragma once
+
 #include <lmdb.h>
+
 #include <iostream>
 #include <fstream>
 #include <set>
@@ -7,7 +9,7 @@
 #include <thread>
 #include <memory>
 #include <string>
-#include <string.h>
+#include <cstring>
 #include <mutex>
 #include <vector>
 #include <algorithm>

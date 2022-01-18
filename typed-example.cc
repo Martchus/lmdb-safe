@@ -1,7 +1,9 @@
 #include "lmdb-typed.hh"
+
 #include <arpa/inet.h>
 
 #include <string>
+
 using namespace std;
 
 struct DNSResourceRecord

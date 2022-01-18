@@ -1,5 +1,7 @@
 #include "lmdb-safe.hh"
-#include <string.h>
+
+#include <cstring>
+
 using namespace std;
 
 int main(int argc, char** argv)

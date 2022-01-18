@@ -1,9 +1,11 @@
 #include "lmdb-safe.hh"
+
 #include <fcntl.h>
+#include <sys/stat.h>
+
 #include <mutex>
 #include <memory>
-#include <sys/stat.h>
-#include <string.h>
+#include <cstring>
 #include <map>
 
 using namespace std;

@@ -1,8 +1,8 @@
 #define CATCH_CONFIG_MAIN
+#include "lmdb-safe.hh"
+#include "catch2/catch.hpp"
 
 #include <iostream>
-#include "catch2/catch.hpp"
-#include "lmdb-safe.hh"
 
 using namespace std;
 
