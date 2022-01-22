@@ -46,13 +46,17 @@ class LMDBError : public std::runtime_error
 public:
   explicit LMDBError(const std::string &error) noexcept
     : std::runtime_error(error)
+    , ec(0)
   {
   }
 
   explicit LMDBError(const std::string &context, int error) noexcept
     : std::runtime_error(context + mdb_strerror(error))
+    , ec(error)
   {
   }
+
+  const int ec;
 };
 
 /*!
