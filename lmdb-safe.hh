@@ -630,17 +630,18 @@ public:
   }
 
   
-  int put(const MDBOutVal& key, const MDBOutVal& data, unsigned int flags=0)
+  void put(const MDBOutVal& key, const MDBOutVal& data, unsigned int flags=0)
   {
-    // XXX check errors
-    return mdb_cursor_put(*this,
+    if (const auto rc = mdb_cursor_put(*this,
                           const_cast<MDB_val*>(&key.d_mdbval),
-                          const_cast<MDB_val*>(&data.d_mdbval), flags);
+                          const_cast<MDB_val*>(&data.d_mdbval), flags))
+      throw LMDBError("Putting data via mdb_cursor_put: ", rc);
   }
 
-  int del(unsigned int flags=0)
+  void del(unsigned int flags=0)
   {
-    return mdb_cursor_del(*this, flags);
+    if (const auto rc = mdb_cursor_del(*this, flags))
+      throw LMDBError("Deleting data via mdb_cursor_del: ", rc);
   }
 
 };
