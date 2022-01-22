@@ -69,8 +69,8 @@ struct LMDBIndexOps
 
   void del(MDBRWTransaction& txn, const Class& t, uint32_t id)
   {
-    if(int rc = txn->del(d_idx, keyConv(d_parent->getMember(t)), id)) {
-      throw std::runtime_error("Error deleting from index: " + std::string(mdb_strerror(rc)));
+    if(const auto rc = txn->del(d_idx, keyConv(d_parent->getMember(t)), id)) {
+      throw LMDBError("Error deleting from index: ", rc);
     }
   }
 
@@ -259,7 +259,7 @@ public:
 
         if(d_on_index) {
           if((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
-            throw std::runtime_error("Missing id in constructor");
+            throw LMDBError("Missing id in constructor");
           serFromString(d_data.get<std::string>(), d_t);
         }
         else
@@ -284,7 +284,7 @@ public:
 
         if(d_on_index) {
           if((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
-            throw std::runtime_error("Missing id in constructor");
+            throw LMDBError("Missing id in constructor");
           serFromString(d_data.get<std::string>(), d_t);
         }
         else
@@ -327,14 +327,13 @@ public:
       iter_t& genoperator(MDB_cursor_op dupop, MDB_cursor_op op)
       {
         MDBOutVal data;
-        int rc;
       next:;
-        rc = d_cursor.get(d_key, d_id, d_one_key ? dupop : op);
+        const auto rc = d_cursor.get(d_key, d_id, d_one_key ? dupop : op);
         if(rc == MDB_NOTFOUND) {
           d_end = true;
         }
         else if(rc) {
-          throw std::runtime_error("in genoperator, " + std::string(mdb_strerror(rc)));
+          throw LMDBError("Unable to get in genoperator: ", rc);
         }
         else if(!d_prefix.empty() && d_key.get<std::string>().rfind(d_prefix, 0)!=0) {
           d_end = true;
@@ -342,7 +341,7 @@ public:
         else {
           if(d_on_index) {
             if((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, data))
-              throw std::runtime_error("Missing id field");
+              throw LMDBError("Missing id field in genoperator");
             if(filter && !filter(data))
               goto next;
             
@@ -591,7 +590,7 @@ public:
     {
       T t;
       if(!this->get(id, t)) 
-        throw std::runtime_error("Could not modify id "+std::to_string(id));
+        throw LMDBError("Could not modify id " + std::to_string(id));
       func(t);
       
       del(id);  // this is the lazy way. We could test for changed index fields

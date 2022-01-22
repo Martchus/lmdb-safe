@@ -12,19 +12,13 @@ using namespace std;
 
 namespace LMDBSafe {
 
-static string MDBError(int rc)
-{
-  return mdb_strerror(rc);
-}
-
 MDBDbi::MDBDbi(MDB_env* env, MDB_txn* txn, const string_view dbname, unsigned int flags)
 {
   (void)env;
   // A transaction that uses this function must finish (either commit or abort) before any other transaction in the process may use this function.
   
-  int rc = mdb_dbi_open(txn, dbname.empty() ? 0 : &dbname[0], flags, &d_dbi);
-  if(rc)
-    throw std::runtime_error("Unable to open named database: " + MDBError(rc));
+  if(const auto rc = mdb_dbi_open(txn, dbname.empty() ? 0 : &dbname[0], flags, &d_dbi))
+    throw LMDBError("Unable to open named database: ", rc);
   
   // Database names are keys in the unnamed database, and may be read but not written.
 }
@@ -33,18 +27,18 @@ MDBEnv::MDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi m
 {
   mdb_env_create(&d_env);   
   if(const auto rc = mdb_env_set_mapsize(d_env, 16ULL * 4096 * 244140ULL)) { // 4GB
-    throw std::runtime_error("setting map size: " + MDBError(rc));
+    throw LMDBError("Setting map size: ", rc);
   }
   // Various other options may also need to be set before opening the handle, e.g. mdb_env_set_mapsize(), mdb_env_set_maxreaders(), mdb_env_set_maxdbs(),
   if (const auto rc = mdb_env_set_maxdbs(d_env, maxDBs)) {
-    throw std::runtime_error("setting maxdbs: " + MDBError(rc));
+    throw LMDBError("Setting maxdbs: ", rc);
   }
 
   // we need MDB_NOTLS since we rely on its semantics
-  if(int rc=mdb_env_open(d_env, fname, flags | MDB_NOTLS, mode)) {
+  if(const auto rc = mdb_env_open(d_env, fname, flags | MDB_NOTLS, mode)) {
     // If this function fails, mdb_env_close() must be called to discard the MDB_env handle.
     mdb_env_close(d_env);
-    throw std::runtime_error("Unable to open database file "+std::string(fname)+": " + MDBError(rc));
+    throw LMDBError("Unable to open database file " + std::string(fname) + ": ", rc);
   }
 }
 
@@ -98,12 +92,12 @@ std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mod
   struct stat statbuf;
   if(stat(fname, &statbuf)) {
     if(errno != ENOENT)
-      throw std::runtime_error("Unable to stat prospective mdb database: "+string(strerror(errno)));
+      throw LMDBError("Unable to stat prospective mdb database: " + string(strerror(errno)));
     else {
       std::lock_guard<std::mutex> l(mut);
       auto fresh = std::make_shared<MDBEnv>(fname, flags, mode, maxDBs);
       if(stat(fname, &statbuf))
-        throw std::runtime_error("Unable to stat prospective mdb database: "+string(strerror(errno)));
+        throw LMDBError("Unable to stat prospective mdb database: " + string(strerror(errno)));
       auto key = std::tie(statbuf.st_dev, statbuf.st_ino);
       s_envs[key] = {fresh, flags};
       return fresh;
@@ -117,7 +111,7 @@ std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mod
     auto sp = iter->second.wp.lock();
     if(sp) {
       if(iter->second.flags != flags)
-        throw std::runtime_error("Can't open mdb with differing flags");
+        throw LMDBError("Can't open mdb with differing flags");
 
       return sp;
     }
@@ -168,7 +162,7 @@ MDB_txn *MDBRWTransactionImpl::openRWTransaction(MDBEnv *env, MDB_txn *parent, u
 {
   MDB_txn *result;
   if(env->getRWTX())
-    throw std::runtime_error("Duplicate RW transaction");
+    throw LMDBError("Duplicate RW transaction");
 
   for(int tries =0 ; tries < 3; ++tries) { // it might happen twice, who knows
     if(int rc=mdb_txn_begin(env->d_env, parent, flags, &result)) {
@@ -178,7 +172,7 @@ MDB_txn *MDBRWTransactionImpl::openRWTransaction(MDBEnv *env, MDB_txn *parent, u
         mdb_env_set_mapsize(env->d_env, 0);
         continue;
       }
-      throw std::runtime_error("Unable to start RW transaction: "+std::string(mdb_strerror(rc)));
+      throw LMDBError("Unable to start RW transaction: ", rc);
     }
     break;
   }
@@ -203,8 +197,8 @@ void MDBRWTransactionImpl::commit()
     return;
   }
 
-  if(int rc = mdb_txn_commit(d_txn)) {
-    throw std::runtime_error("committing: " + std::string(mdb_strerror(rc)));
+  if(const auto rc = mdb_txn_commit(d_txn)) {
+    throw LMDBError("Committing transaction: ", rc);
   }
   environment().decRWTX();
   d_txn = nullptr;
@@ -234,21 +228,20 @@ MDBROTransactionImpl::MDBROTransactionImpl(MDBEnv *parent, MDB_txn *txn):
 MDB_txn *MDBROTransactionImpl::openROTransaction(MDBEnv *env, MDB_txn *parent, unsigned int flags)
 {
   if(env->getRWTX())
-    throw std::runtime_error("Duplicate RO transaction");
+    throw LMDBError("Duplicate RO transaction");
   
   /*
     A transaction and its cursors must only be used by a single thread, and a thread may only have a single transaction at a time. If MDB_NOTLS is in use, this does not apply to read-only transactions. */
   MDB_txn *result = nullptr;
-  for(int tries =0 ; tries < 3; ++tries) { // it might happen twice, who knows
-    if(int rc=mdb_txn_begin(env->d_env, parent, MDB_RDONLY | flags, &result)) {
+  for(int tries = 0; tries < 3; ++tries) { // it might happen twice, who knows
+    if(const auto rc = mdb_txn_begin(env->d_env, parent, MDB_RDONLY | flags, &result)) {
       if(rc == MDB_MAP_RESIZED && tries < 2) {
         // "If the mapsize is increased by another process (..) mdb_txn_begin() will return MDB_MAP_RESIZED.
         // call mdb_env_set_mapsize with a size of zero to adopt the new size."
         mdb_env_set_mapsize(env->d_env, 0);
         continue;
       }
-
-      throw std::runtime_error("Unable to start RO transaction: "+string(mdb_strerror(rc)));
+      throw LMDBError("Unable to start RO transaction: ", rc);
     }
     break;
   }
@@ -297,7 +290,7 @@ void MDBROTransactionImpl::commit()
   if (d_txn) {
     d_parent->decROTX();
     if (const auto rc = mdb_txn_commit(d_txn)) { // this appears to work better than abort for r/o database opening
-      throw std::runtime_error("Error comitting transaction: " + MDBError(rc));
+      throw LMDBError("Error comitting transaction: ", rc);
     }
     d_txn = nullptr;
   }
@@ -307,17 +300,16 @@ void MDBROTransactionImpl::commit()
 
 void MDBRWTransactionImpl::clear(MDB_dbi dbi)
 {
-  if(int rc = mdb_drop(d_txn, dbi, 0)) {
-    throw runtime_error("Error clearing database: " + MDBError(rc));
+  if(const auto rc = mdb_drop(d_txn, dbi, 0)) {
+    throw LMDBError("Error clearing database: ", rc);
   }
 }
 
 MDBRWCursor MDBRWTransactionImpl::getRWCursor(const MDBDbi& dbi)
 {
-  MDB_cursor *cursor;
-  int rc= mdb_cursor_open(d_txn, dbi, &cursor);
-  if(rc) {
-    throw std::runtime_error("Error creating RO cursor: "+std::string(mdb_strerror(rc)));
+  MDB_cursor *cursor;;
+  if(const auto rc = mdb_cursor_open(d_txn, dbi, &cursor)) {
+    throw LMDBError("Error creating RO cursor: ", rc);
   }
   return MDBRWCursor(d_rw_cursors, cursor);
 }
@@ -330,8 +322,8 @@ MDBRWCursor MDBRWTransactionImpl::getCursor(const MDBDbi &dbi)
 MDBRWTransaction MDBRWTransactionImpl::getRWTransaction()
 {
   MDB_txn *txn;
-  if (int rc = mdb_txn_begin(environment(), *this, 0, &txn)) {
-    throw std::runtime_error(std::string("failed to start child transaction: ")+mdb_strerror(rc));
+  if (const auto rc = mdb_txn_begin(environment(), *this, 0, &txn)) {
+    throw LMDBError("Failed to start child transaction: ", rc);
   }
   // we need to increase the counter here because commit/abort on the child transaction will decrease it
   environment().incRWTX();
@@ -370,9 +362,8 @@ MDBROCursor MDBROTransactionImpl::getCursor(const MDBDbi& dbi)
 MDBROCursor MDBROTransactionImpl::getROCursor(const MDBDbi &dbi)
 {
   MDB_cursor *cursor;
-  int rc= mdb_cursor_open(d_txn, dbi, &cursor);
-  if(rc) {
-    throw std::runtime_error("Error creating RO cursor: "+std::string(mdb_strerror(rc)));
+  if(const auto rc = mdb_cursor_open(d_txn, dbi, &cursor)) {
+    throw LMDBError("Error creating RO cursor: ", rc);
   }
   return MDBROCursor(d_cursors, cursor);
 }

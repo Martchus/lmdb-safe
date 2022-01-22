@@ -14,6 +14,7 @@
 #include <vector>
 #include <algorithm>
 #include <limits>
+#include <stdexcept>
 
 /*!
  * \brief The LMDBSafe namespace contains all classes/types contained by the lmdb-safe and
@@ -39,6 +40,20 @@ using boost::string_view;
 using string_view = boost::string_ref;
 #endif
 #endif
+
+class LMDBError : public std::runtime_error
+{
+public:
+  explicit LMDBError(const std::string &error) noexcept
+    : std::runtime_error(error)
+  {
+  }
+
+  explicit LMDBError(const std::string &context, int error) noexcept
+    : std::runtime_error(context + mdb_strerror(error))
+  {
+  }
+};
 
 /*!
  * \brief The MDBDbi class is our only 'value type' object as 1) a dbi is actually an integer
@@ -121,7 +136,7 @@ struct MDBOutVal
   {
     T ret;
     if(d_mdbval.mv_size != sizeof(T))
-      throw std::runtime_error("MDB data has wrong length for type");
+      throw LMDBError("MDB data has wrong length for type");
     
     memcpy(&ret, d_mdbval.mv_data, sizeof(T));
     return ret;
@@ -136,7 +151,7 @@ struct MDBOutVal
   {
     T ret;
     if(d_mdbval.mv_size != sizeof(T))
-      throw std::runtime_error("MDB data has wrong length for type");
+      throw LMDBError("MDB data has wrong length for type");
     
     memcpy(&ret, d_mdbval.mv_data, sizeof(T));
     return ret;
@@ -146,7 +161,7 @@ struct MDBOutVal
   const T* get_struct_ptr() const
   {
     if(d_mdbval.mv_size != sizeof(T))
-      throw std::runtime_error("MDB data has wrong length for type");
+      throw LMDBError("MDB data has wrong length for type");
     
     return reinterpret_cast<const T*>(d_mdbval.mv_data);
   }
@@ -261,12 +276,12 @@ public:
   int get(MDB_dbi dbi, const MDBInVal& key, MDBOutVal& val)
   {
     if(!d_txn)
-      throw std::runtime_error("Attempt to use a closed RO transaction for get");
+      throw LMDBError("Attempt to use a closed RO transaction for get");
 
-    int rc = mdb_get(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval),
+    const auto rc = mdb_get(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval),
                      const_cast<MDB_val*>(&val.d_mdbval));
     if(rc && rc != MDB_NOTFOUND)
-      throw std::runtime_error("getting data: " + std::string(mdb_strerror(rc)));
+      throw LMDBError("Getting data: ", rc);
     
     return rc;
   }
@@ -383,18 +398,18 @@ public:
 public:
   int get(MDBOutVal& key, MDBOutVal& data, MDB_cursor_op op)
   {
-    int rc = mdb_cursor_get(d_cursor, &key.d_mdbval, &data.d_mdbval, op);
+    const auto rc = mdb_cursor_get(d_cursor, &key.d_mdbval, &data.d_mdbval, op);
     if(rc && rc != MDB_NOTFOUND)
-       throw std::runtime_error("Unable to get from cursor: " + std::string(mdb_strerror(rc)));
+       throw LMDBError("Unable to get from cursor: ", rc);
     return rc;
   }
 
   int find(const MDBInVal& in, MDBOutVal& key, MDBOutVal& data)
   {
     key.d_mdbval = in.d_mdbval;
-    int rc=mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, MDB_SET);
+    const auto rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, MDB_SET);
     if(rc && rc != MDB_NOTFOUND)
-       throw std::runtime_error("Unable to find from cursor: " + std::string(mdb_strerror(rc)));
+       throw LMDBError("Unable to find from cursor: ", rc);
     return rc;
   }
   
@@ -402,18 +417,18 @@ public:
   {
     key.d_mdbval = in.d_mdbval;
 
-    int rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, MDB_SET_RANGE);
+    const auto rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, MDB_SET_RANGE);
     if(rc && rc != MDB_NOTFOUND)
-       throw std::runtime_error("Unable to lower_bound from cursor: " + std::string(mdb_strerror(rc)));
+       throw LMDBError("Unable to lower_bound from cursor: ", rc);
     return rc;
   }
 
   
   int nextprev(MDBOutVal& key, MDBOutVal& data, MDB_cursor_op op)
   {
-    int rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, op);
+    const auto rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, op);
     if(rc && rc != MDB_NOTFOUND)
-       throw std::runtime_error("Unable to prevnext from cursor: " + std::string(mdb_strerror(rc)));
+       throw LMDBError("Unable to prevnext from cursor: ", rc);
     return rc;
   }
 
@@ -429,9 +444,9 @@ public:
 
   int currentlast(MDBOutVal& key, MDBOutVal& data, MDB_cursor_op op)
   {
-    int rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, op);
+    const auto rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, op);
     if(rc && rc != MDB_NOTFOUND)
-       throw std::runtime_error("Unable to next from cursor: " + std::string(mdb_strerror(rc)));
+       throw LMDBError("Unable to next from cursor: ", rc);
     return rc;
   }
 
@@ -526,30 +541,27 @@ public:
   void put(MDB_dbi dbi, const MDBInVal& key, const MDBInVal& val, unsigned int flags=0)
   {
     if(!d_txn)
-      throw std::runtime_error("Attempt to use a closed RW transaction for put");
-    int rc;
-    if((rc=mdb_put(d_txn, dbi,
+      throw LMDBError("Attempt to use a closed RW transaction for put");
+    if(const auto rc = mdb_put(d_txn, dbi,
                    const_cast<MDB_val*>(&key.d_mdbval),
-                   const_cast<MDB_val*>(&val.d_mdbval), flags)))
-      throw std::runtime_error("putting data: " + std::string(mdb_strerror(rc)));
+                   const_cast<MDB_val*>(&val.d_mdbval), flags))
+      throw LMDBError("Putting data: ", rc);
   }
 
 
   int del(MDBDbi& dbi, const MDBInVal& key, const MDBInVal& val)
   {
-    int rc;
-    rc=mdb_del(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval), const_cast<MDB_val*>(&val.d_mdbval));
+    const auto rc = mdb_del(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval), const_cast<MDB_val*>(&val.d_mdbval));
     if(rc && rc != MDB_NOTFOUND)
-      throw std::runtime_error("deleting data: " + std::string(mdb_strerror(rc)));
+      throw LMDBError("Deleting data: ", rc);
     return rc;
   }
 
   int del(MDBDbi& dbi, const MDBInVal& key)
   {
-    int rc;
-    rc=mdb_del(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval), 0);
+    const auto rc = mdb_del(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval), 0);
     if(rc && rc != MDB_NOTFOUND)
-      throw std::runtime_error("deleting data: " + std::string(mdb_strerror(rc)));
+      throw LMDBError("Deleting data: ", rc);
     return rc;
   }
 
@@ -557,19 +569,19 @@ public:
   int get(MDBDbi& dbi, const MDBInVal& key, MDBOutVal& val)
   {
     if(!d_txn)
-      throw std::runtime_error("Attempt to use a closed RW transaction for get");
+      throw LMDBError("Attempt to use a closed RW transaction for get");
 
-    int rc = mdb_get(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval),
+    const auto rc = mdb_get(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval),
                      const_cast<MDB_val*>(&val.d_mdbval));
     if(rc && rc != MDB_NOTFOUND)
-      throw std::runtime_error("getting data: " + std::string(mdb_strerror(rc)));
+      throw LMDBError("Getting data: ", rc);
     return rc;
   }
 
   int get(MDBDbi& dbi, const MDBInVal& key, string_view& val)
   {
     MDBOutVal out;
-    int rc = get(dbi, key, out);
+    const auto rc = get(dbi, key, out);
     if(!rc)
       val = out.get<string_view>();
     return rc;
@@ -607,11 +619,10 @@ public:
 
   void put(const MDBOutVal& key, const MDBInVal& data)
   {
-    int rc = mdb_cursor_put(*this,
-                            const_cast<MDB_val*>(&key.d_mdbval),
-                            const_cast<MDB_val*>(&data.d_mdbval), MDB_CURRENT);
-    if(rc)
-      throw std::runtime_error("mdb_cursor_put: " + std::string(mdb_strerror(rc)));
+    if(const auto rc = mdb_cursor_put(*this,
+                      const_cast<MDB_val*>(&key.d_mdbval),
+                      const_cast<MDB_val*>(&data.d_mdbval), MDB_CURRENT))
+      throw LMDBError("Putting data via mdb_cursor_put: ", rc);
   }
 
   
