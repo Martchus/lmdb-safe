@@ -15,6 +15,15 @@
 #include <algorithm>
 #include <limits>
 
+/*!
+ * \brief The LMDBSafe namespace contains all classes/types contained by the lmdb-safe and
+ *        lmdb-typed libraries.
+ * \remarks
+ * - Error strategy: Anything that "should never happen" turns into an exception. But things
+ *   like "duplicate entry" or "no such key" are for you to deal with.
+ * - Thread safety: We are as safe as LMDB. You can talk to MDBEnv from as many threads as you
+ *   want.
+ */
 namespace LMDBSafe {
 
 // apple compiler somehow has string_view even in c++11!
@@ -31,16 +40,10 @@ using string_view = boost::string_ref;
 #endif
 #endif
 
-/*
-The error strategy. Anything that "should never happen" turns into an exception. But things like 'duplicate entry' or 'no such key' are for you to deal with.
+/*!
+ * \brief The MDBDbi class is our only 'value type' object as 1) a dbi is actually an integer
+ *        and 2) per LMDB documentation, we never close it.
  */
-
-/*
-  Thread safety: we are as safe as lmdb. You can talk to MDBEnv from as many threads as you want 
-*/
-
-/** MDBDbi is our only 'value type' object, as 1) a dbi is actually an integer
-    and 2) per LMDB documentation, we never close it. */
 class MDBDbi
 {
 public:
@@ -302,12 +305,13 @@ public:
   }
 };
 
-/* 
-   A cursor in a read-only transaction must be closed explicitly, before or after its transaction ends. It can be reused with mdb_cursor_renew() before finally closing it. 
-
-   "If the parent transaction commits, the cursor must not be used again."
-*/
-
+/*!
+ * \brief The MDBGenCursor class represents a MDB_cursor handle.
+ * \remarks
+ * - A cursor in a read-only transaction must be closed explicitly, before or after its transaction ends.
+ *   It can be reused with mdb_cursor_renew() before finally closing it.
+ * - "If the parent transaction commits, the cursor must not be used again."
+ */
 template<class Transaction, class T>
 class MDBGenCursor
 {
@@ -583,9 +587,13 @@ public:
   MDBROTransaction getROTransaction();
 };
 
-/* "A cursor in a write-transaction can be closed before its transaction ends, and will otherwise be closed when its transaction ends" 
-   This is a problem for us since it may means we are closing the cursor twice, which is bad
-*/
+/*!
+ * \brief The MDBRWCursor class implements RW operations based on MDBGenCursor.
+ * \remarks
+ * - "A cursor in a write-transaction can be closed before its transaction ends, and will otherwise
+ *   be closed when its transaction ends." This is a problem for us since it may means we are closing
+ *   the cursor twice, which is bad.
+ */
 class MDBRWCursor : public MDBGenCursor<MDBRWTransactionImpl, MDBRWCursor>
 {
 public:

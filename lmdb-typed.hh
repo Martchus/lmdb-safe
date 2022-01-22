@@ -47,16 +47,17 @@ inline string_view keyConv(const T& t)
   return t;
 }
 
-/** This is a struct that implements index operations, but 
-    only the operations that are broadcast to all indexes.
-    Specifically, to deal with databases with less than the maximum
-    number of interfaces, this only includes calls that should be
-    ignored for empty indexes.
-
-    this only needs methods that must happen for all indexes at once
-    so specifically, not size<t> or get<t>, people ask for those themselves, and
-    should no do that on indexes that don't exist */
-
+/*!
+ * \brief The LMDBIndexOps struct implements index operations, but only the operations that
+ *        are broadcast to all indexes.
+ *
+ * Specifically, to deal with databases with less than the maximum number of interfaces, this
+ * only includes calls that should be ignored for empty indexes.
+ *
+ * This class only needs methods that must happen for all indexes at once. So specifically, *not*
+ * size<t> or get<t>. People ask for those themselves, and should no do that on indexes that
+ * don't exist.
+ */
 template<class Class,typename Type, typename Parent>
 struct LMDBIndexOps
 {
