@@ -279,7 +279,7 @@ public:
       throw LMDBError("Attempt to use a closed RO transaction for get");
 
     const auto rc = mdb_get(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval),
-                     const_cast<MDB_val*>(&val.d_mdbval));
+                     &val.d_mdbval);
     if(rc && rc != MDB_NOTFOUND)
       throw LMDBError("Getting data: ", rc);
     
@@ -426,7 +426,7 @@ public:
   
   int nextprev(MDBOutVal& key, MDBOutVal& data, MDB_cursor_op op)
   {
-    const auto rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, op);
+    const auto rc = mdb_cursor_get(d_cursor, &key.d_mdbval, &data.d_mdbval, op);
     if(rc && rc != MDB_NOTFOUND)
        throw LMDBError("Unable to prevnext from cursor: ", rc);
     return rc;
@@ -444,7 +444,7 @@ public:
 
   int currentlast(MDBOutVal& key, MDBOutVal& data, MDB_cursor_op op)
   {
-    const auto rc = mdb_cursor_get(d_cursor, const_cast<MDB_val*>(&key.d_mdbval), &data.d_mdbval, op);
+    const auto rc = mdb_cursor_get(d_cursor, &key.d_mdbval, &data.d_mdbval, op);
     if(rc && rc != MDB_NOTFOUND)
        throw LMDBError("Unable to next from cursor: ", rc);
     return rc;
@@ -572,7 +572,7 @@ public:
       throw LMDBError("Attempt to use a closed RW transaction for get");
 
     const auto rc = mdb_get(d_txn, dbi, const_cast<MDB_val*>(&key.d_mdbval),
-                     const_cast<MDB_val*>(&val.d_mdbval));
+                     &val.d_mdbval);
     if(rc && rc != MDB_NOTFOUND)
       throw LMDBError("Getting data: ", rc);
     return rc;
