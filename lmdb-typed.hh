@@ -80,6 +80,13 @@ struct LMDBIndexOps
     }
   }
 
+  void clear(MDBRWTransaction& txn)
+  {
+    if (const auto rc = mdb_drop(*txn, d_idx, 0)) {
+      throw LMDBError("Error clearing index: ", rc);
+    }
+  }
+
   void openDB(std::shared_ptr<MDBEnv>& env, string_view str, unsigned int flags)
   {
     d_idx = env->openDB(str, flags);
@@ -135,6 +142,11 @@ struct nullindex_t
       (void)txn;
       (void)t;
       (void)id;
+  }
+  template<typename Class>
+  void clear(Class& txn)
+  {
+      (void)txn;
   }
   
   void openDB(std::shared_ptr<MDBEnv>& env, string_view str, unsigned int flags)
@@ -614,19 +626,18 @@ public:
       clearIndex(id, t);
     }
 
-    //! clear database & indexes (by hand!)
+    //! clear database & indexes
     void clear()
     {
-      auto cursor = (*d_txn)->getRWCursor(d_parent->d_main);
-      bool first = true;
-      MDBOutVal key, data;
-      while(!cursor.get(key, data, first ? MDB_FIRST : MDB_NEXT)) {
-        first = false;
-        T t;
-        serFromString(data.get<string_view>(), t);
-        clearIndex(key.get<uint32_t>(), t);
-        cursor.del();
+      if (const auto rc = mdb_drop(**d_txn, d_parent->d_main, 0)) {
+        throw LMDBError("Error database: ", rc);
       }
+#define clearMacro(N) std::get<N>(d_parent->d_tuple).clear(*d_txn);
+      clearMacro(0);
+      clearMacro(1);
+      clearMacro(2);
+      clearMacro(3);
+#undef clearMacro
     }
 
     //! commit this transaction
