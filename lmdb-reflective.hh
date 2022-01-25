@@ -24,7 +24,7 @@ std::string serToString(const T& t)
 }
 
 template<typename T>
-void serFromString(const string_view& str, T& ret)
+void serFromString(string_view str, T& ret)
 {
   auto source = boost::iostreams::array_source(str.data(), str.size());
   auto stream = boost::iostreams::stream<boost::iostreams::array_source>(source);

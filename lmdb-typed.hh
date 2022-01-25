@@ -27,7 +27,7 @@ template<typename T>
 std::string serToString(const T& t);
 
 template<typename T>
-void serFromString(const string_view& str, T& ret);
+void serFromString(string_view str, T& ret);
 
 /** This is the serialization interface for keys.
     You need to define your these functions for the types you'd like to use as keys.

@@ -208,7 +208,7 @@ public:
     d_mdbval.mv_data = static_cast<void*>(const_cast<char*>(s));
   }
   
-  MDBInVal(const string_view& v) 
+  MDBInVal(string_view v)
   {
     d_mdbval.mv_size = v.size();
     d_mdbval.mv_data = static_cast<void*>(const_cast<char*>(v.data()));
