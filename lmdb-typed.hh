@@ -199,7 +199,7 @@ public:
       if((*d_parent.d_txn)->get(d_parent.d_parent->d_main, id, data))
         return false;
       
-      serFromString(data.get<std::string>(), t);
+      serFromString(data.get<string_view>(), t);
       return true;
     }
 
@@ -260,10 +260,10 @@ public:
         if(d_on_index) {
           if((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
             throw LMDBError("Missing id in constructor");
-          serFromString(d_data.get<std::string>(), d_t);
+          serFromString(d_data.get<string_view>(), d_t);
         }
         else
-          serFromString(d_id.get<std::string>(), d_t);
+          serFromString(d_id.get<string_view>(), d_t);
       }
 
       explicit iter_t(Parent* parent, typename Parent::cursor_t&& cursor, const std::string& prefix) :
@@ -285,10 +285,10 @@ public:
         if(d_on_index) {
           if((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
             throw LMDBError("Missing id in constructor");
-          serFromString(d_data.get<std::string>(), d_t);
+          serFromString(d_data.get<string_view>(), d_t);
         }
         else
-          serFromString(d_id.get<std::string>(), d_t);
+          serFromString(d_id.get<string_view>(), d_t);
       }
 
       
@@ -345,13 +345,13 @@ public:
             if(filter && !filter(data))
               goto next;
             
-            serFromString(data.get<std::string>(), d_t);
+            serFromString(data.get<string_view>(), d_t);
           }
           else {
             if(filter && !filter(data))
               goto next;
                         
-            serFromString(d_id.get<std::string>(), d_t);
+            serFromString(d_id.get<string_view>(), d_t);
           }
         }
         return *this;
@@ -617,7 +617,7 @@ public:
       while(!cursor.get(key, data, first ? MDB_FIRST : MDB_NEXT)) {
         first = false;
         T t;
-        serFromString(data.get<std::string>(), t);
+        serFromString(data.get<string_view>(), t);
         clearIndex(key.get<uint32_t>(), t);
         cursor.del();
       }
