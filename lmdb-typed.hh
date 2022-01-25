@@ -47,6 +47,12 @@ inline string_view keyConv(const T& t)
   return t;
 }
 
+template<class T, typename std::enable_if<std::is_same<T, string_view>::value,T>::type* = nullptr>
+inline string_view keyConv(string_view t)
+{
+  return t;
+}
+
 /*!
  * \brief The LMDBIndexOps struct implements index operations, but only the operations that
  *        are broadcast to all indexes.
