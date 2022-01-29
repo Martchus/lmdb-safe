@@ -1,10 +1,13 @@
 #pragma once
-// Example for plugging a (de)serialization implementation using the binary
-// (de)serializer provided by https://github.com/Martchus/reflective-rapidjson.
 
 #include "./lmdb-safe.hh"
 
-#include <reflective-rapidjson/lib/binary/reflector.h>
+#include <boost/archive/binary_oarchive.hpp>
+#include <boost/archive/binary_iarchive.hpp>
+
+#include <boost/serialization/vector.hpp>
+#include <boost/serialization/string.hpp>
+#include <boost/serialization/utility.hpp>
 
 #include <boost/iostreams/stream.hpp>
 #include <boost/iostreams/stream_buffer.hpp>
@@ -18,8 +21,8 @@ std::string serToString(const T& t)
   auto ret = std::string();
   auto inserter = boost::iostreams::back_insert_device<std::string>(ret);
   auto stream = boost::iostreams::stream<boost::iostreams::back_insert_device<std::string>>(inserter);
-  auto deserializer = ReflectiveRapidJSON::BinaryReflector::BinarySerializer(&stream);
-  deserializer.write(t);
+  auto oa = boost::archive::binary_oarchive(stream, boost::archive::no_header | boost::archive::no_codecvt);
+  oa << t;
   return ret;
 }
 
@@ -28,9 +31,8 @@ void serFromString(string_view str, T& ret)
 {
   auto source = boost::iostreams::array_source(str.data(), str.size());
   auto stream = boost::iostreams::stream<boost::iostreams::array_source>(source);
-  auto serializer = ReflectiveRapidJSON::BinaryReflector::BinaryDeserializer(&stream);
-  ret = T();
-  serializer.read(ret);
+  auto ia = boost::archive::binary_iarchive(stream, boost::archive::no_header|boost::archive::no_codecvt);
+  ia >> ret;
 }
 
 }

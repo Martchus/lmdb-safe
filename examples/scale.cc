@@ -1,4 +1,6 @@
-#include "lmdb-safe.hh"
+#include "../lmdb-safe.hh"
+
+#include <c++utilities/conversion/stringconversion.h>
 
 using namespace std;
 using namespace LMDBSafe;
@@ -22,12 +24,12 @@ struct MDBVal
 int main(int argc, char** argv)
 {
   auto env = getMDBEnv("./database", 0, 0600);
-  auto dbi = env->openDB(0, MDB_CREATE | MDB_INTEGERKEY);
+  auto dbi = env->openDB(std::string_view(), MDB_CREATE | MDB_INTEGERKEY);
   auto txn = env->getRWTransaction();
 
   unsigned int limit=20000000;
   if(argc > 1)
-    limit = atoi(argv[1]);
+    limit = CppUtilities::stringToNumber<unsigned int>(argv[1]);
   
   cout<<"Counting records.. "; cout.flush();
   auto cursor = txn->getCursor(dbi);

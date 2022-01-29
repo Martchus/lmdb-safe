@@ -1,6 +1,9 @@
+#include "../lmdb-safe.hh"
+
 #define CATCH_CONFIG_MAIN
-#include "lmdb-safe.hh"
-#include "catch2/catch.hpp"
+#include <catch2/catch.hpp>
+
+#include <c++utilities/application/global.h>
 
 #include <iostream>
 
@@ -146,7 +149,7 @@ TEST_CASE("transaction inheritance and moving")
     // aborting by default)
   }
 
-  CHECK(!cursor);
+  CHECK(!const_cast<const MDBRWCursor&>(cursor));
 }
 
 TEST_CASE("nested RW transactions", "[transactions]")
@@ -301,6 +304,7 @@ TEST_CASE("transaction counter correctness for RW->RW nesting")
   REQUIRE(1);
 
   MDBDbi main = env.openDB("", MDB_CREATE);
+  CPP_UTILITIES_UNUSED(main)
 
   {
     auto txn = env.getRWTransaction();
@@ -319,6 +323,7 @@ TEST_CASE("transaction counter correctness for RW->RO nesting")
   REQUIRE(1);
 
   MDBDbi main = env.openDB("", MDB_CREATE);
+  CPP_UTILITIES_UNUSED(main)
 
   {
     auto txn = env.getRWTransaction();

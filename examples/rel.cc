@@ -1,7 +1,9 @@
-#include "lmdb-safe.hh"
+#include "../lmdb-safe.hh"
 
 #include <boost/archive/binary_oarchive.hpp>
 #include <boost/archive/binary_iarchive.hpp>
+
+#include <c++utilities/application/global.h>
 
 #include <sstream>
 
@@ -15,6 +17,7 @@ struct Record
   template<class Archive>
   void serialize(Archive & ar, const unsigned int version)
   {
+    CPP_UTILITIES_UNUSED(version)
     ar & id & domain_id & name & type & ttl & content & enabled & auth;
   }
   
@@ -52,7 +55,7 @@ static void store(MDBRWTransaction& txn, MDBDbi& records, MDBDbi& domainidx, MDB
 }
 
 
-int main(int argc, char** argv)
+int main(int, char** argv)
 {
   auto env = getMDBEnv("pdns",  0, 0600);
   auto records = env->openDB("records", MDB_INTEGERKEY | MDB_CREATE );

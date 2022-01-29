@@ -1,11 +1,17 @@
-#include "lmdb-safe.hh"
+#include "../lmdb-safe.hh"
 
 #include <cstring>
 
 using namespace std;
 using namespace LMDBSafe;
 
-int main(int argc, char** argv)
+template <typename First, typename Second>
+struct Pair {
+    First first;
+    Second second;
+};
+
+int main(int argc, char**)
 {
   auto env = getMDBEnv("resize",  MDB_NOSUBDIR | MDB_NOSYNC, 0600);
   auto main = env->openDB("ahu",  MDB_CREATE );
@@ -14,20 +20,20 @@ int main(int argc, char** argv)
 
   auto rwtxn = env->getRWTransaction();
   rwtxn->put(main, "counter", "1234");
-  rwtxn->put(main, MDBInVal::fromStruct(std::make_pair(12,13)), "hoi dan 12,13");
+  rwtxn->put(main, MDBInVal::fromStruct(Pair<int, int>{12,13}), "hoi dan 12,13");
 
-  rwtxn->put(main, MDBInVal::fromStruct(std::make_pair(14,15)),
-             MDBInVal::fromStruct(std::make_pair(20,23)));
+  rwtxn->put(main, MDBInVal::fromStruct(Pair<int, int>{14,15}),
+             MDBInVal::fromStruct(Pair<int, int>{20,23}));
 
   
   MDBOutVal out;
-  if(!rwtxn->get(main, MDBInVal::fromStruct(std::make_pair(12,13)), out))
+  if(!rwtxn->get(main, MDBInVal::fromStruct(Pair<int, int>{12,13}), out))
     cout << "Got: " << out.get<string_view>() << endl;
   else
     cout << "Got nothing!1"<<endl;
   
-  if(!rwtxn->get(main, MDBInVal::fromStruct(std::make_pair(14,15)), out)) {
-    auto res = out.get_struct<pair<int,int>>();
+  if(!rwtxn->get(main, MDBInVal::fromStruct(Pair<int, int>{14,15}), out)) {
+    auto res = out.get_struct<Pair<int,int>>();
     cout << "Got: " << res.first<<", "<<res.second << endl;
   }
   else
@@ -77,7 +83,7 @@ int main(int argc, char** argv)
       }
       auto txn = env->getRWTransaction();
       txn->put(main, key, MDBInVal(n));
-      for(int k=0; k < 100; ++k)
+      for(unsigned int k=0; k < 100; ++k)
         txn->put(main, MDBInVal(n+1000*k), MDBInVal(n+1000*k));
       txn->commit();
     }

@@ -1,4 +1,7 @@
-#include "lmdb-typed.hh"
+#include "../lmdb-boost-serialization.hh"
+#include "../lmdb-typed.hh"
+
+#include <c++utilities/application/global.h>
 
 #include <arpa/inet.h>
 
@@ -27,12 +30,14 @@ struct DomainInfo
 template<class Archive>
 void serialize(Archive & ar, DomainInfo& g, const unsigned int version)
 {
+  CPP_UTILITIES_UNUSED(version)
   ar & g.qname & g.master;
 }
 
 template<class Archive>
 void serialize(Archive & ar, DNSResourceRecord& g, const unsigned int version)
 {
+  CPP_UTILITIES_UNUSED(version)
   ar & g.qtype;
   ar & g.qname;
   ar & g.content;
@@ -49,7 +54,7 @@ struct compound
   {
     std::string ret;
     uint32_t id = htonl(rr.domain_id);
-    ret.assign((char*)&id, 4);
+    ret.assign(reinterpret_cast<char *>(&id), 4);
     ret.append(rr.ordername);
     return ret;
   }
@@ -199,23 +204,23 @@ int main()
   
   cout<<"Going to iterate over the name powerdns.com!"<<endl;
 
-  for(auto iter = txn.equal_range<0>("powerdns.com"); iter.first != iter.second; ++iter.first) {
-    cout << iter.first.getID()<<": "<<iter.first->qname << " " << iter.first->qtype << " " << iter.first->content <<endl;
+  for(auto iter2 = txn.equal_range<0>("powerdns.com"); iter2.first != iter2.second; ++iter2.first) {
+    cout << iter2.first.getID()<<": "<<iter2.first->qname << " " << iter2.first->qtype << " " << iter2.first->content <<endl;
   }
   cout<<"Done iterating"<<endl;                        
 
   cout<<"Going to iterate over the zone ds9a.nl!"<<endl;
 
-  for(auto iter = txn.find<1>(10); iter != txn.end(); ++iter) {
-    cout << iter.getID()<<": "<<iter->qname << " " << iter->qtype << " " << iter->content <<endl;
+  for(auto iter2 = txn.find<1>(10); iter2 != txn.end(); ++iter2) {
+    cout << iter2.getID()<<": "<<iter2->qname << " " << iter2->qtype << " " << iter2->content <<endl;
   }
   cout<<"Done iterating"<<endl;                        
 
   DNSResourceRecord change;
   txn.get(1, change);
   cout<<"1.auth: "<<change.auth << endl;
-  txn.modify(1, [](DNSResourceRecord& c) {
-      c.auth = false;
+  txn.modify(1, [](DNSResourceRecord& record) {
+      record.auth = false;
     });
   txn.get(1, change);
   cout<<"1.auth: "<<change.auth << endl;

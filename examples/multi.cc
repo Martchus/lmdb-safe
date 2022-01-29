@@ -1,4 +1,4 @@
-#include "lmdb-safe.hh"
+#include "../lmdb-safe.hh"
 
 #include <unistd.h>
 

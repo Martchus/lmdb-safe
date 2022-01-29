@@ -1,5 +1,10 @@
-#include "lmdb-typed.hh"
-#include "catch2/catch.hpp"
+#include "../lmdb-boost-serialization.hh"
+#include "../lmdb-typed.hh"
+
+#define CATCH_CONFIG_MAIN
+#include <catch2/catch.hpp>
+
+#include <c++utilities/application/global.h>
 
 #include <time.h>
 
@@ -18,6 +23,7 @@ struct Member
 template<class Archive>
 void serialize(Archive & ar, Member& g, const unsigned int version)
 {
+  CPP_UTILITIES_UNUSED(version)
   ar & g.firstName & g.lastName & g.enrolled;
 }
 

@@ -1,5 +1,6 @@
 #pragma once
-#include "lmdb-safe.hh"
+
+#include "./lmdb-safe.hh"
 
 namespace LMDBSafe {
 
@@ -18,7 +19,7 @@ namespace LMDBSafe {
     This makes us start everything at ID=1, which might make it possible to 
     treat id 0 as special
 */
-unsigned int MDBGetMaxID(MDBRWTransaction& txn, MDBDbi& dbi);
+LMDB_SAFE_EXPORT unsigned int MDBGetMaxID(MDBRWTransaction& txn, MDBDbi& dbi);
 
 /** This is the serialization interface.
     You need to define your these functions for the types you'd like to store.
@@ -65,7 +66,7 @@ inline string_view keyConv(string_view t)
  * don't exist.
  */
 template<class Class,typename Type, typename Parent>
-struct LMDBIndexOps
+struct LMDB_SAFE_EXPORT LMDBIndexOps
 {
   explicit LMDBIndexOps(Parent* parent) : d_parent(parent){}
   void put(MDBRWTransaction& txn, const Class& t, uint32_t id, unsigned int flags=0)
@@ -161,7 +162,7 @@ struct nullindex_t
 
 /** The main class. Templatized only on the indexes and typename right now */
 template<typename T, class I1=nullindex_t, class I2=nullindex_t, class I3 = nullindex_t, class I4 = nullindex_t>
-class TypedDBI
+class LMDB_SAFE_EXPORT TypedDBI
 {
 public:
   TypedDBI(std::shared_ptr<MDBEnv> env, string_view name)
@@ -284,7 +285,7 @@ public:
           serFromString(d_id.get<string_view>(), d_t);
       }
 
-      explicit iter_t(Parent* parent, typename Parent::cursor_t&& cursor, const std::string& prefix) :
+      explicit iter_t(Parent* parent, typename Parent::cursor_t&& cursor, string_view prefix) :
         d_parent(parent),
         d_cursor(std::move(cursor)),
         d_on_index(true), // is this an iterator on main database or on index?
@@ -532,7 +533,7 @@ public:
     Parent& d_parent;
   };
   
-  class ROTransaction : public ReadonlyOperations<ROTransaction>
+  class LMDB_SAFE_EXPORT ROTransaction : public ReadonlyOperations<ROTransaction>
   {
   public:
     explicit ROTransaction(TypedDBI* parent) : ReadonlyOperations<ROTransaction>(*this), d_parent(parent), d_txn(std::make_shared<MDBROTransaction>(d_parent->d_env->getROTransaction())) 
@@ -563,7 +564,7 @@ public:
   };    
 
   
-  class RWTransaction :  public ReadonlyOperations<RWTransaction>
+  class LMDB_SAFE_EXPORT RWTransaction :  public ReadonlyOperations<RWTransaction>
   {
   public:
     explicit RWTransaction(TypedDBI* parent) : ReadonlyOperations<RWTransaction>(*this), d_parent(parent)

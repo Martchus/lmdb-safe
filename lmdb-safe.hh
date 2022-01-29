@@ -1,5 +1,7 @@
 #pragma once
 
+#include "./global.h"
+
 #include <lmdb.h>
 
 #include <iostream>
@@ -41,7 +43,7 @@ using string_view = boost::string_ref;
 #endif
 #endif
 
-class LMDBError : public std::runtime_error
+class LMDB_SAFE_EXPORT LMDBError : public std::runtime_error
 {
 public:
   explicit LMDBError(const std::string &error) noexcept
@@ -63,7 +65,7 @@ public:
  * \brief The MDBDbi class is our only 'value type' object as 1) a dbi is actually an integer
  *        and 2) per LMDB documentation, we never close it.
  */
-class MDBDbi
+class LMDB_SAFE_EXPORT MDBDbi
 {
 public:
   MDBDbi()
@@ -86,10 +88,10 @@ class MDBROTransactionImpl;
 using MDBROTransaction = std::unique_ptr<MDBROTransactionImpl>;
 using MDBRWTransaction = std::unique_ptr<MDBRWTransactionImpl>;
 
-class MDBEnv
+class LMDB_SAFE_EXPORT MDBEnv
 {
 public:
-  MDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs);
+  MDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs = 10);
 
   ~MDBEnv()
   {
@@ -122,11 +124,9 @@ private:
   std::map<std::thread::id, int> d_ROtransactionsOut;
 };
 
-std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs = 128);
+LMDB_SAFE_EXPORT std::shared_ptr<MDBEnv> getMDBEnv(const char* fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs = 128);
 
-
-
-struct MDBOutVal
+struct LMDB_SAFE_EXPORT MDBOutVal
 {
   operator MDB_val&()
   {
@@ -184,7 +184,7 @@ template<> inline string_view MDBOutVal::get<string_view>() const
   return string_view(static_cast<char*>(d_mdbval.mv_data), d_mdbval.mv_size);
 }
 
-class MDBInVal
+class LMDB_SAFE_EXPORT MDBInVal
 {
 public:
   MDBInVal(const MDBOutVal& rhs)
@@ -226,7 +226,7 @@ public:
   {
     MDBInVal ret;
     ret.d_mdbval.mv_size = sizeof(T);
-    ret.d_mdbval.mv_data = static_cast<void*>(const_cast<char*>(&t[0]));
+    ret.d_mdbval.mv_data = static_cast<void*>(&const_cast<T&>(t));
     return ret;
   }
   
@@ -241,12 +241,9 @@ private:
 
 };
 
-
-
-
 class MDBROCursor;
 
-class MDBROTransactionImpl
+class LMDB_SAFE_EXPORT MDBROTransactionImpl
 {
 protected:
   MDBROTransactionImpl(MDBEnv *parent, MDB_txn *txn);
@@ -495,7 +492,7 @@ public:
   }
 };
 
-class MDBROCursor : public MDBGenCursor<MDBROTransactionImpl, MDBROCursor>
+class LMDB_SAFE_EXPORT MDBROCursor : public MDBGenCursor<MDBROTransactionImpl, MDBROCursor>
 {
 public:
   MDBROCursor() = default;
@@ -510,7 +507,7 @@ public:
 
 class MDBRWCursor;
 
-class MDBRWTransactionImpl: public MDBROTransactionImpl
+class LMDB_SAFE_EXPORT MDBRWTransactionImpl: public MDBROTransactionImpl
 {
 protected:
   MDBRWTransactionImpl(MDBEnv* parent, MDB_txn* txn);
@@ -610,7 +607,7 @@ public:
  *   be closed when its transaction ends." This is a problem for us since it may means we are closing
  *   the cursor twice, which is bad.
  */
-class MDBRWCursor : public MDBGenCursor<MDBRWTransactionImpl, MDBRWCursor>
+class LMDB_SAFE_EXPORT MDBRWCursor : public MDBGenCursor<MDBRWTransactionImpl, MDBRWCursor>
 {
 public:
   MDBRWCursor() = default;
