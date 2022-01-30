@@ -23,11 +23,11 @@ struct MDBVal
 
 int main(int argc, char** argv)
 {
-  auto env = getMDBEnv("./database", 0, 0600);
+  auto env = getMDBEnv("./database", MDB_NOSUBDIR, 0600);
   auto dbi = env->openDB(std::string_view(), MDB_CREATE | MDB_INTEGERKEY);
   auto txn = env->getRWTransaction();
 
-  unsigned int limit=20000000;
+  unsigned int limit=20;
   if(argc > 1)
     limit = CppUtilities::stringToNumber<unsigned int>(argv[1]);
   
