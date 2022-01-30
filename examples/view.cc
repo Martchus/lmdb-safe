@@ -27,7 +27,11 @@ void countDB(MDBEnv &env, MDBROTransaction &txn, const std::string &dbname)
 
 int main(int argc, char **argv)
 {
-    MDBEnv env(argc >= 2 ? argv[1] : "./database", MDB_RDONLY | MDB_NOSUBDIR, 0600);
+    if (argc < 2) {
+        cout << "No database file specified.\n";
+        return 0;
+    }
+    MDBEnv env(argv[1], MDB_RDONLY | MDB_NOSUBDIR, 0600);
     auto main = env.openDB("", 0);
     auto txn = env.getROTransaction();
 

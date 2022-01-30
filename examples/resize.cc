@@ -12,7 +12,7 @@ template <typename First, typename Second> struct Pair {
 
 int main(int argc, char **)
 {
-    auto env = getMDBEnv("resize", MDB_NOSUBDIR | MDB_NOSYNC, 0600);
+    auto env = getMDBEnv("./resize.lmdb", MDB_NOSUBDIR | MDB_NOSYNC, 0600);
     auto main = env->openDB("ahu", MDB_CREATE);
 
     MDBInVal key("counter");

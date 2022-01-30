@@ -12,9 +12,8 @@ using namespace LMDBSafe;
 
 TEST_CASE("Most basic tests", "[mostbasic]")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     REQUIRE(1);
 
     MDBDbi main = env.openDB("", MDB_CREATE);
@@ -36,9 +35,8 @@ TEST_CASE("Most basic tests", "[mostbasic]")
 
 TEST_CASE("Range tests", "[range]")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     REQUIRE(1);
 
     MDBDbi main = env.openDB("", MDB_CREATE);
@@ -98,9 +96,8 @@ TEST_CASE("Range tests", "[range]")
 
 TEST_CASE("moving transactions")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     REQUIRE(1);
 
     MDBDbi main = env.openDB("", MDB_CREATE);
@@ -125,9 +122,8 @@ TEST_CASE("moving transactions")
 
 TEST_CASE("transaction inheritance and moving")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     MDBDbi main = env.openDB("", MDB_CREATE);
 
     MDBRWCursor cursor;
@@ -155,9 +151,8 @@ TEST_CASE("transaction inheritance and moving")
 
 TEST_CASE("nested RW transactions", "[transactions]")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     REQUIRE(1);
 
     MDBDbi main = env.openDB("", MDB_CREATE);
@@ -206,9 +201,8 @@ TEST_CASE("nested RW transactions", "[transactions]")
 
 TEST_CASE("nesting RW -> RO", "[transactions]")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     REQUIRE(1);
 
     MDBDbi main = env.openDB("", MDB_CREATE);
@@ -259,9 +253,8 @@ TEST_CASE("nesting RW -> RO", "[transactions]")
 
 TEST_CASE("try to nest twice", "[transactions]")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     REQUIRE(1);
 
     MDBDbi main = env.openDB("", MDB_CREATE);
@@ -295,9 +288,8 @@ TEST_CASE("try to nest twice", "[transactions]")
 
 TEST_CASE("transaction counter correctness for RW->RW nesting")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     REQUIRE(1);
 
     MDBDbi main = env.openDB("", MDB_CREATE);
@@ -314,9 +306,8 @@ TEST_CASE("transaction counter correctness for RW->RW nesting")
 
 TEST_CASE("transaction counter correctness for RW->RO nesting")
 {
-    unlink("./tests");
-
-    MDBEnv env("./tests", MDB_NOSUBDIR, 0600);
+    unlink("./basic-tests.lmdb");
+    MDBEnv env("./basic-tests.lmdb", MDB_NOSUBDIR, 0600);
     REQUIRE(1);
 
     MDBDbi main = env.openDB("", MDB_CREATE);

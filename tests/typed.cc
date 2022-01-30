@@ -32,7 +32,7 @@ TEST_CASE("Basic typed tests", "[basictyped]")
         index_on<Member, time_t, &Member::enrolled>>
         tmembers_t;
 
-    auto tmembers = tmembers_t(getMDBEnv("./tests-typed", MDB_CREATE | MDB_NOSUBDIR, 0600), "members");
+    auto tmembers = tmembers_t(getMDBEnv("./tests-typed.lmdb", MDB_CREATE | MDB_NOSUBDIR, 0600), "members");
 
     REQUIRE(1);
 

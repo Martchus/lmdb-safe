@@ -8,7 +8,7 @@ using namespace LMDBSafe;
 int main()
 {
     unlink("./multi");
-    auto env = getMDBEnv("multi", MDB_NOSUBDIR, 0600);
+    auto env = getMDBEnv("./multi.lmdb", MDB_NOSUBDIR, 0600);
     auto dbi = env->openDB("qnames", MDB_DUPSORT | MDB_CREATE);
 
     auto txn = env->getRWTransaction();

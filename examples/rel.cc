@@ -53,7 +53,7 @@ static void store(MDBRWTransaction &txn, MDBDbi &records, MDBDbi &domainidx, MDB
 
 int main(int argc, char **argv)
 {
-    auto env = getMDBEnv("pdns", MDB_NOSUBDIR, 0600);
+    auto env = getMDBEnv("./pdns.lmdb", MDB_NOSUBDIR, 0600);
     auto records = env->openDB("records", MDB_INTEGERKEY | MDB_CREATE);
     auto domainidx = env->openDB("domainidx", MDB_INTEGERKEY | MDB_DUPFIXED | MDB_DUPSORT | MDB_CREATE);
     auto nameidx = env->openDB("nameidx", MDB_DUPFIXED | MDB_DUPSORT | MDB_CREATE);

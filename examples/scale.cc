@@ -22,7 +22,7 @@ struct MDBVal {
 
 int main(int argc, char **argv)
 {
-    auto env = getMDBEnv("./database", MDB_NOSUBDIR, 0600);
+    auto env = getMDBEnv("./scale.lmdb", MDB_NOSUBDIR, 0600);
     auto dbi = env->openDB(std::string_view(), MDB_CREATE | MDB_INTEGERKEY);
     auto txn = env->getRWTransaction();
 
