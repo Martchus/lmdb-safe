@@ -4,7 +4,7 @@
 
 #include "./lmdb-safe.hh"
 
-#include <reflective-rapidjson/lib/binary/reflector.h>
+#include <reflective_rapidjson/binary/reflector.h>
 
 #include <boost/iostreams/device/back_inserter.hpp>
 #include <boost/iostreams/stream.hpp>
