@@ -1,4 +1,6 @@
-#include "lmdb-safe.hh"
+#include "../lmdb-safe.hh"
+
+#include <c++utilities/application/global.h>
 
 #include <iostream>
 
@@ -7,6 +9,7 @@ using namespace LMDBSafe;
 
 void countDB(MDBEnv& env, MDBROTransaction& txn, const std::string& dbname)
 {
+    CPP_UTILITIES_UNUSED(env)
   auto db = txn->openDB(dbname, 0);
   auto cursor = txn->getCursor(db);
   uint32_t count = 0;
@@ -25,7 +28,7 @@ void countDB(MDBEnv& env, MDBROTransaction& txn, const std::string& dbname)
 
 int main(int argc, char** argv)
 {
-  MDBEnv env(argv[1], MDB_RDONLY | MDB_NOSUBDIR, 0600);
+  MDBEnv env(argc >= 2 ? argv[1] : "./database", MDB_RDONLY | MDB_NOSUBDIR, 0600);
   auto main = env.openDB("", 0);
   auto txn = env.getROTransaction();
 

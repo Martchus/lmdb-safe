@@ -58,6 +58,9 @@ use_package(TARGET_NAME Boost::serialization PACKAGE_NAME Boost PACKAGE_ARGS "${
 # find catch2 (required by tests)
 use_package(TARGET_NAME Catch2::Catch2 PACKAGE_NAME Catch2 LIBRARIES_VARIABLE "TEST_LIBRARIES")
 
+# find threading library (required by examples)
+use_package(TARGET_NAME Threads::Threads PACKAGE_NAME Threads LIBRARIES_VARIABLE "TEST_LIBRARIES")
+
 # include modules to apply configuration
 include(BasicConfig)
 include(WindowsResources)
@@ -72,7 +75,7 @@ set(TESTS basic typed)
 foreach (TEST ${TESTS})
     configure_test_target(TEST_NAME "${TEST}_tests" SRC_FILES "tests/${TEST}.cc" LIBRARIES "${TEST_LIBRARIES}")
 endforeach ()
-set(EXAMPLES multi rel resize scale typed)
+set(EXAMPLES basic multi rel resize scale typed view)
 foreach (EXAMPLE ${EXAMPLES})
     configure_test_target(TEST_NAME "${EXAMPLE}_example" SRC_FILES "examples/${EXAMPLE}.cc" LIBRARIES "${TEST_LIBRARIES}")
 endforeach ()

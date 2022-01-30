@@ -1,4 +1,4 @@
-#include "lmdb-safe.hh"
+#include "../lmdb-safe.hh"
 
 using namespace std;
 using namespace LMDBSafe;
@@ -16,7 +16,7 @@ void checkLMDB(MDBEnv* env, MDBDbi dbi)
 
 int main()
 {
-  auto env = getMDBEnv("./database", 0, 0600);
+  auto env = getMDBEnv("./database", MDB_NOSUBDIR, 0600);
   auto dbi = env->openDB("example", MDB_CREATE);
   
   auto txn = env->getRWTransaction();
