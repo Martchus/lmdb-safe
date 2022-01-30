@@ -10,225 +10,232 @@
 using namespace std;
 using namespace LMDBSafe;
 
-struct DNSResourceRecord
-{
-  string qname; // index
-  uint16_t qtype{0};
-  uint32_t domain_id{0}; // index
-  string content;
-  uint32_t ttl{0};
-  string ordername;   // index
-  bool auth{true};
+struct DNSResourceRecord {
+    string qname; // index
+    uint16_t qtype{ 0 };
+    uint32_t domain_id{ 0 }; // index
+    string content;
+    uint32_t ttl{ 0 };
+    string ordername; // index
+    bool auth{ true };
 };
 
-struct DomainInfo
-{
-  string qname;
-  string master;
+struct DomainInfo {
+    string qname;
+    string master;
 };
 
-template<class Archive>
-void serialize(Archive & ar, DomainInfo& g, const unsigned int version)
+template <class Archive> void serialize(Archive &ar, DomainInfo &g, const unsigned int version)
 {
-  CPP_UTILITIES_UNUSED(version)
-  ar & g.qname & g.master;
+    CPP_UTILITIES_UNUSED(version)
+    ar &g.qname &g.master;
 }
 
-template<class Archive>
-void serialize(Archive & ar, DNSResourceRecord& g, const unsigned int version)
+template <class Archive> void serialize(Archive &ar, DNSResourceRecord &g, const unsigned int version)
 {
-  CPP_UTILITIES_UNUSED(version)
-  ar & g.qtype;
-  ar & g.qname;
-  ar & g.content;
-  ar & g.ttl;
-  ar & g.domain_id;
-  ar & g.ordername;
-  ar & g.auth;
+    CPP_UTILITIES_UNUSED(version)
+    ar &g.qtype;
+    ar &g.qname;
+    ar &g.content;
+    ar &g.ttl;
+    ar &g.domain_id;
+    ar &g.ordername;
+    ar &g.auth;
 }
 
-
-struct compound
-{
-  std::string operator()(const DNSResourceRecord& rr)
-  {
-    std::string ret;
-    uint32_t id = htonl(rr.domain_id);
-    ret.assign(reinterpret_cast<char *>(&id), 4);
-    ret.append(rr.ordername);
-    return ret;
-  }
+struct compound {
+    std::string operator()(const DNSResourceRecord &rr)
+    {
+        std::string ret;
+        uint32_t id = htonl(rr.domain_id);
+        ret.assign(reinterpret_cast<char *>(&id), 4);
+        ret.append(rr.ordername);
+        return ret;
+    }
 };
 
 int main()
 {
-  TypedDBI<DNSResourceRecord, 
-           index_on<DNSResourceRecord, string,   &DNSResourceRecord::qname>,
-           index_on<DNSResourceRecord, uint32_t, &DNSResourceRecord::domain_id>,
-           index_on_function<DNSResourceRecord, string, compound>
-           > tdbi(getMDBEnv("./typed.lmdb", MDB_NOSUBDIR, 0600), "records");
+    TypedDBI<DNSResourceRecord, index_on<DNSResourceRecord, string, &DNSResourceRecord::qname>,
+        index_on<DNSResourceRecord, uint32_t, &DNSResourceRecord::domain_id>, index_on_function<DNSResourceRecord, string, compound>>
+        tdbi(getMDBEnv("./typed.lmdb", MDB_NOSUBDIR, 0600), "records");
 
-  TypedDBI<DomainInfo,
-           index_on<DomainInfo, string, &DomainInfo::qname>
-           > tdomains(tdbi.getEnv(), "domains");
+    TypedDBI<DomainInfo, index_on<DomainInfo, string, &DomainInfo::qname>> tdomains(tdbi.getEnv(), "domains");
 
-  
-  {
-    auto rotxn = tdbi.getROTransaction();
-    DNSResourceRecord rr0;
-    if(rotxn.get(2, rr0)) {
-      cout << "id 2, found "<<rr0.qname<<endl;
-    }
-    else {
-      cout <<"Did not find id 2" << endl;
-    }
-    cout<<"Iterating over name 'powerdns.com': "<<endl;
-    auto range = rotxn.equal_range<0>("powerdns.com");
-    for(auto iter = std::move(range.first); iter != range.second; ++iter)
     {
-      cout << iter->qname << " " << iter->qtype << " " <<iter->content <<endl;
+        auto rotxn = tdbi.getROTransaction();
+        DNSResourceRecord rr0;
+        if (rotxn.get(2, rr0)) {
+            cout << "id 2, found " << rr0.qname << endl;
+        } else {
+            cout << "Did not find id 2" << endl;
+        }
+        cout << "Iterating over name 'powerdns.com': " << endl;
+        auto range = rotxn.equal_range<0>("powerdns.com");
+        for (auto iter = std::move(range.first); iter != range.second; ++iter) {
+            cout << iter->qname << " " << iter->qtype << " " << iter->content << endl;
+        }
+        cout << "Currently have " << rotxn.size() << " entries" << endl;
+        cout << " " << rotxn.size<0>() << " " << rotxn.size<1>() << " " << rotxn.size<2>() << endl;
+        cout << " " << rotxn.cardinality<0>() << endl;
+        cout << " " << rotxn.cardinality<1>() << endl;
+        cout << " " << rotxn.cardinality<2>() << endl;
     }
-    cout<<"Currently have "<< rotxn.size()<< " entries"<<endl;
-    cout<<" " << rotxn.size<0>() << " " << rotxn.size<1>() << " " << rotxn.size<2>() << endl;
-    cout<<" " << rotxn.cardinality<0>() << endl;
-    cout<<" " << rotxn.cardinality<1>() << endl;
-    cout<<" " << rotxn.cardinality<2>() << endl;
-  }
-  
-  auto txn = tdbi.getRWTransaction();
-  auto domtxn = tdomains.getRWTransaction(txn.getTransactionHandle());
-  cout << domtxn.size()<<" domains in table"<<endl;
-  txn.clear();
-  domtxn.clear();
-  
-  cout<<"Currently have "<< txn.size()<< " entries after clear"<<endl;
-  cout<<" " << txn.size<0>() << " " << txn.size<1>() << " " << txn.size<2>() << endl;
-  cout<<" " << txn.cardinality<0>() << endl;
-  cout<<" " << txn.cardinality<1>() << endl;
-  cout<<" " << txn.cardinality<2>() << endl;
 
-  DomainInfo di{"powerdns.com", "ns1.powerdns.com"};
-  domtxn.put(di, 11);
-  
-  DNSResourceRecord rr;
-  rr.domain_id=11;  rr.qtype = 5;  rr.ttl = 3600;  rr.qname = "www.powerdns.com";  rr.ordername = "www";
-  rr.content = "powerdns.com";
-  
-  auto id = txn.put(rr);
-  cout<<"Puted as id "<<id<<endl;
-  
-  rr.qname = "powerdns.com";  rr.qtype = 1;  rr.ordername="";  rr.content = "1.2.3.4";
+    auto txn = tdbi.getRWTransaction();
+    auto domtxn = tdomains.getRWTransaction(txn.getTransactionHandle());
+    cout << domtxn.size() << " domains in table" << endl;
+    txn.clear();
+    domtxn.clear();
 
-  id = txn.put(rr);
-  cout<<"Puted as id "<<id<<endl;
+    cout << "Currently have " << txn.size() << " entries after clear" << endl;
+    cout << " " << txn.size<0>() << " " << txn.size<1>() << " " << txn.size<2>() << endl;
+    cout << " " << txn.cardinality<0>() << endl;
+    cout << " " << txn.cardinality<1>() << endl;
+    cout << " " << txn.cardinality<2>() << endl;
 
-  rr.qtype = 2;  rr.content = "ns1.powerdns.com";  rr.ordername = "ns1";
-  id = txn.put(rr);
-  cout<<"Puted as id "<<id<<endl;
+    DomainInfo di{ "powerdns.com", "ns1.powerdns.com" };
+    domtxn.put(di, 11);
 
-  rr.content = "ns2.powerdns.com";  rr.ordername = "ns2";  id = txn.put(rr);
-  cout<<"Puted as id "<<id<<endl;
+    DNSResourceRecord rr;
+    rr.domain_id = 11;
+    rr.qtype = 5;
+    rr.ttl = 3600;
+    rr.qname = "www.powerdns.com";
+    rr.ordername = "www";
+    rr.content = "powerdns.com";
 
-  DomainInfo di2{"ds9a.nl", "ns1.powerdns.com"};
-  domtxn.put(di, 10);
-  
-  
-  rr.qname = "www.ds9a.nl";  rr.domain_id = 10;  rr.content = "1.2.3.4";  rr.qtype = 1;
-  rr.ordername="www";
-  txn.put(rr);
+    auto id = txn.put(rr);
+    cout << "Puted as id " << id << endl;
 
-  rr.qname = "ds9a.nl"; rr.content = "ns1.ds9a.nl bert.ds9a.nl 1"; rr.qtype = 6;
-  rr.ordername="";
-  txn.put(rr);
+    rr.qname = "powerdns.com";
+    rr.qtype = 1;
+    rr.ordername = "";
+    rr.content = "1.2.3.4";
 
-  rr.qname = "ds9a.nl"; rr.content = "25 ns1.ds9a.nl"; rr.qtype = 15;
-  txn.put(rr);
+    id = txn.put(rr);
+    cout << "Puted as id " << id << endl;
 
-  rr.qname = "ns1.ds9a.nl"; rr.content = "1.2.3.4"; rr.qtype = 1;
-  rr.ordername="ns1";
-  txn.put(rr);
-  rr.qname = "ns1.ds9a.nl"; rr.content = "::1"; rr.qtype = 26;
-  txn.put(rr);
+    rr.qtype = 2;
+    rr.content = "ns1.powerdns.com";
+    rr.ordername = "ns1";
+    id = txn.put(rr);
+    cout << "Puted as id " << id << endl;
 
-  rr.qname = "ns2.ds9a.nl"; rr.content = "1.2.3.4"; rr.qtype = 1;
-  rr.ordername="ns2";
-  txn.put(rr);
-  rr.qname = "ns2.ds9a.nl"; rr.content = "::1"; rr.qtype = 26;
-  txn.put(rr);
+    rr.content = "ns2.powerdns.com";
+    rr.ordername = "ns2";
+    id = txn.put(rr);
+    cout << "Puted as id " << id << endl;
 
-  
-  
-  DNSResourceRecord rr2;
-  id = txn.get<0>("www.powerdns.com", rr2);
+    DomainInfo di2{ "ds9a.nl", "ns1.powerdns.com" };
+    domtxn.put(di, 10);
 
-  cout<<"Retrieved id "<< id <<", content: "<<rr2.content<<endl;
+    rr.qname = "www.ds9a.nl";
+    rr.domain_id = 10;
+    rr.content = "1.2.3.4";
+    rr.qtype = 1;
+    rr.ordername = "www";
+    txn.put(rr);
 
-  id = txn.get<0>("powerdns.com", rr2);
+    rr.qname = "ds9a.nl";
+    rr.content = "ns1.ds9a.nl bert.ds9a.nl 1";
+    rr.qtype = 6;
+    rr.ordername = "";
+    txn.put(rr);
 
-  cout<<"Retrieved id "<< id <<", content: "<<rr2.content<<endl;
+    rr.qname = "ds9a.nl";
+    rr.content = "25 ns1.ds9a.nl";
+    rr.qtype = 15;
+    txn.put(rr);
 
-  DNSResourceRecord rr3;
-  id = txn.get<0>("powerdns.com", rr3);
-  cout<< id << endl;
+    rr.qname = "ns1.ds9a.nl";
+    rr.content = "1.2.3.4";
+    rr.qtype = 1;
+    rr.ordername = "ns1";
+    txn.put(rr);
+    rr.qname = "ns1.ds9a.nl";
+    rr.content = "::1";
+    rr.qtype = 26;
+    txn.put(rr);
 
+    rr.qname = "ns2.ds9a.nl";
+    rr.content = "1.2.3.4";
+    rr.qtype = 1;
+    rr.ordername = "ns2";
+    txn.put(rr);
+    rr.qname = "ns2.ds9a.nl";
+    rr.content = "::1";
+    rr.qtype = 26;
+    txn.put(rr);
 
-  cout<<"Going to iterate over everything, ordered by name!"<<endl;
-  for(auto iter = txn.begin<0>(); iter != txn.end(); ++iter) {
-    cout << iter.getID()<<": "<<iter->qname << " " << iter->qtype << " " << iter->content <<endl;
-  }
+    DNSResourceRecord rr2;
+    id = txn.get<0>("www.powerdns.com", rr2);
 
-  cout<<"Going to iterate over everything, ordered by domain_id!"<<endl;
-  for(auto iter = txn.begin<1>(); iter != txn.end(); ++iter) {
-    cout << iter.getID()<<": "<<iter->qname << " " << iter->qtype << " " << iter->content <<endl;
-  }
+    cout << "Retrieved id " << id << ", content: " << rr2.content << endl;
 
-  cout<<"Going to iterate over everything, ordered by id!"<<endl;
-  for(auto iter = txn.begin(); iter != txn.end(); ++iter) {
-    cout << iter.getID()<<": "<<iter->qname << " " << iter->qtype << " " << iter->content <<endl;
-  }
+    id = txn.get<0>("powerdns.com", rr2);
 
-  cout<<"Going to iterate over everything, ordered by compound index!"<<endl;
-  for(auto iter = txn.begin<2>(); iter != txn.end(); ++iter) {
-    cout << iter.getID()<<": "<<iter->qname << " " << iter->qtype << " " << iter->content <<" # "<<iter->ordername << endl;
-  }
+    cout << "Retrieved id " << id << ", content: " << rr2.content << endl;
 
-  compound c;
-  rr3.ordername = "vvv";
-  rr3.domain_id = 10;
-  auto iter = txn.lower_bound<2>(c(rr3));
-  cout <<"Found for '"<<rr3.ordername<<"' using compound index: "<<iter->qname<< " # '" <<iter->ordername<< "'"<<endl;
-  for(int n =0 ; n < 4; ++n) {
-    --iter;
-    cout <<"Found PREV using compound index: "<<iter->qname<< " # '" <<iter->ordername<<"'"<<endl;
-  }
-  
-  cout<<"Going to iterate over the name powerdns.com!"<<endl;
+    DNSResourceRecord rr3;
+    id = txn.get<0>("powerdns.com", rr3);
+    cout << id << endl;
 
-  for(auto iter2 = txn.equal_range<0>("powerdns.com"); iter2.first != iter2.second; ++iter2.first) {
-    cout << iter2.first.getID()<<": "<<iter2.first->qname << " " << iter2.first->qtype << " " << iter2.first->content <<endl;
-  }
-  cout<<"Done iterating"<<endl;                        
+    cout << "Going to iterate over everything, ordered by name!" << endl;
+    for (auto iter = txn.begin<0>(); iter != txn.end(); ++iter) {
+        cout << iter.getID() << ": " << iter->qname << " " << iter->qtype << " " << iter->content << endl;
+    }
 
-  cout<<"Going to iterate over the zone ds9a.nl!"<<endl;
+    cout << "Going to iterate over everything, ordered by domain_id!" << endl;
+    for (auto iter = txn.begin<1>(); iter != txn.end(); ++iter) {
+        cout << iter.getID() << ": " << iter->qname << " " << iter->qtype << " " << iter->content << endl;
+    }
 
-  for(auto iter2 = txn.find<1>(10); iter2 != txn.end(); ++iter2) {
-    cout << iter2.getID()<<": "<<iter2->qname << " " << iter2->qtype << " " << iter2->content <<endl;
-  }
-  cout<<"Done iterating"<<endl;                        
+    cout << "Going to iterate over everything, ordered by id!" << endl;
+    for (auto iter = txn.begin(); iter != txn.end(); ++iter) {
+        cout << iter.getID() << ": " << iter->qname << " " << iter->qtype << " " << iter->content << endl;
+    }
 
-  DNSResourceRecord change;
-  txn.get(1, change);
-  cout<<"1.auth: "<<change.auth << endl;
-  txn.modify(1, [](DNSResourceRecord& record) {
-      record.auth = false;
-    });
-  txn.get(1, change);
-  cout<<"1.auth: "<<change.auth << endl;
-  txn.del(1);
+    cout << "Going to iterate over everything, ordered by compound index!" << endl;
+    for (auto iter = txn.begin<2>(); iter != txn.end(); ++iter) {
+        cout << iter.getID() << ": " << iter->qname << " " << iter->qtype << " " << iter->content << " # " << iter->ordername << endl;
+    }
 
-  //  DNSResourceRecord rr4;
-  //  id = txn.get3("ns1", rr4);
-  //  cout<<"Found "<<id<<": " << rr4.content <<endl;
+    compound c;
+    rr3.ordername = "vvv";
+    rr3.domain_id = 10;
+    auto iter = txn.lower_bound<2>(c(rr3));
+    cout << "Found for '" << rr3.ordername << "' using compound index: " << iter->qname << " # '" << iter->ordername << "'" << endl;
+    for (int n = 0; n < 4; ++n) {
+        --iter;
+        cout << "Found PREV using compound index: " << iter->qname << " # '" << iter->ordername << "'" << endl;
+    }
 
-  txn.commit();
+    cout << "Going to iterate over the name powerdns.com!" << endl;
+
+    for (auto iter2 = txn.equal_range<0>("powerdns.com"); iter2.first != iter2.second; ++iter2.first) {
+        cout << iter2.first.getID() << ": " << iter2.first->qname << " " << iter2.first->qtype << " " << iter2.first->content << endl;
+    }
+    cout << "Done iterating" << endl;
+
+    cout << "Going to iterate over the zone ds9a.nl!" << endl;
+
+    for (auto iter2 = txn.find<1>(10); iter2 != txn.end(); ++iter2) {
+        cout << iter2.getID() << ": " << iter2->qname << " " << iter2->qtype << " " << iter2->content << endl;
+    }
+    cout << "Done iterating" << endl;
+
+    DNSResourceRecord change;
+    txn.get(1, change);
+    cout << "1.auth: " << change.auth << endl;
+    txn.modify(1, [](DNSResourceRecord &record) { record.auth = false; });
+    txn.get(1, change);
+    cout << "1.auth: " << change.auth << endl;
+    txn.del(1);
+
+    //  DNSResourceRecord rr4;
+    //  id = txn.get3("ns1", rr4);
+    //  cout<<"Found "<<id<<": " << rr4.content <<endl;
+
+    txn.commit();
 }

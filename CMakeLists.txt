@@ -61,6 +61,16 @@ use_package(TARGET_NAME Catch2::Catch2 PACKAGE_NAME Catch2 LIBRARIES_VARIABLE "T
 # find threading library (required by examples)
 use_package(TARGET_NAME Threads::Threads PACKAGE_NAME Threads LIBRARIES_VARIABLE "TEST_LIBRARIES")
 
+# add test/example files to EXCLUDED_FILES so they're formatted
+set(TESTS basic typed)
+set(EXAMPLES basic multi rel resize scale typed view)
+foreach (TEST ${TESTS})
+    list(APPEND EXCLUDED_FILES "tests/${TEST}.cc")
+endforeach ()
+foreach (EXAMPLE ${EXAMPLES})
+    list(APPEND EXCLUDED_FILES "examples/${EXAMPLE}.cc")
+endforeach ()
+
 # include modules to apply configuration
 include(BasicConfig)
 include(WindowsResources)
@@ -71,11 +81,9 @@ include(ConfigHeader)
 # configure test targets
 include(TestUtilities)
 list(APPEND TEST_LIBRARIES ${META_TARGET_NAME})
-set(TESTS basic typed)
 foreach (TEST ${TESTS})
     configure_test_target(TEST_NAME "${TEST}_tests" SRC_FILES "tests/${TEST}.cc" LIBRARIES "${TEST_LIBRARIES}")
 endforeach ()
-set(EXAMPLES basic multi rel resize scale typed view)
 foreach (EXAMPLE ${EXAMPLES})
     configure_test_target(TEST_NAME "${EXAMPLE}_example" SRC_FILES "examples/${EXAMPLE}.cc" LIBRARIES "${TEST_LIBRARIES}")
 endforeach ()
