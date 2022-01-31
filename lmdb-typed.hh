@@ -2,6 +2,8 @@
 
 #include "./lmdb-safe.hh"
 
+#include <c++utilities/conversion/stringbuilder.h>
+
 namespace LMDBSafe {
 
 /* 
@@ -121,59 +123,47 @@ template <class Class, typename Type, class Func> struct index_on_function : LMD
     typedef Type type;
 };
 
-/** nop index, so we can fill our N indexes, even if you don't use them all */
-struct nullindex_t {
-    template <typename Class> void put(MDBRWTransaction &txn, const Class &t, uint32_t id, unsigned int flags = 0)
+/*!
+ * \brief The TypedDBI class is the main class.
+ * \tparam T Specifies the type to store within the database.
+ * \tparam I Specifies an index, should be an instantiation of index_on.
+ */
+template <typename T, typename... I> class LMDB_SAFE_EXPORT TypedDBI {
+public:
+    // declare tuple for indexes
+    using tuple_t = std::tuple<I...>;
+    template <std::size_t N> using index_t = typename std::tuple_element_t<N, tuple_t>::type;
+
+private:
+    tuple_t d_tuple;
+
+    template <class Tuple, std::size_t N> struct IndexIterator {
+        static inline void apply(Tuple &tuple, auto &&func)
+        {
+            IndexIterator<Tuple, N - 1>::apply(tuple, std::forward<decltype(func)>(func));
+            func(std::get<N - 1>(tuple));
+        }
+    };
+    template <class Tuple> struct IndexIterator<Tuple, 1> {
+        static inline void apply(Tuple &tuple, auto &&func)
+        {
+            func(std::get<0>(tuple));
+        }
+    };
+    void forEachIndex(auto &&func)
     {
-        (void)txn;
-        (void)t;
-        (void)id;
-        (void)flags;
-    }
-    template <typename Class> void del(MDBRWTransaction &txn, const Class &t, uint32_t id)
-    {
-        (void)txn;
-        (void)t;
-        (void)id;
-    }
-    template <typename Class> void clear(Class &txn)
-    {
-        (void)txn;
+        IndexIterator<tuple_t, std::tuple_size_v<tuple_t>>::apply(d_tuple, std::forward<decltype(func)>(func));
     }
 
-    void openDB(std::shared_ptr<MDBEnv> &env, string_view str, unsigned int flags)
-    {
-        (void)env;
-        (void)str;
-        (void)flags;
-    }
-    typedef uint32_t type; // dummy
-};
-
-/** The main class. Templatized only on the indexes and typename right now */
-template <typename T, class I1 = nullindex_t, class I2 = nullindex_t, class I3 = nullindex_t, class I4 = nullindex_t>
-class LMDB_SAFE_EXPORT TypedDBI {
 public:
     TypedDBI(std::shared_ptr<MDBEnv> env, string_view name)
         : d_env(env)
         , d_name(name)
     {
         d_main = d_env->openDB(name, MDB_CREATE | MDB_INTEGERKEY);
-
-        // now you might be tempted to go all MPL on this so we can get rid of the
-        // ugly macro. I'm not very receptive to that idea since it will make things
-        // EVEN uglier.
-#define openMacro(N) std::get<N>(d_tuple).openDB(d_env, std::string(name) + "_" #N, MDB_CREATE | MDB_DUPFIXED | MDB_DUPSORT);
-        openMacro(0);
-        openMacro(1);
-        openMacro(2);
-        openMacro(3);
-#undef openMacro
+        std::size_t index = 0;
+        forEachIndex([&](auto &&i) { i.openDB(d_env, CppUtilities::argsToString(name, '_', index++), MDB_CREATE | MDB_DUPFIXED | MDB_DUPSORT); });
     }
-
-    // we get a lot of our smarts from this tuple, it enables get<0> etc
-    typedef std::tuple<I1, I2, I3, I4> tuple_t;
-    tuple_t d_tuple;
 
     // We support readonly and rw transactions. Here we put the Readonly operations
     // which get sourced by both kinds of transactions
@@ -211,7 +201,7 @@ public:
         }
 
         //! Get item through index N, then via the main database
-        template <std::size_t N> uint32_t get(const typename std::tuple_element<N, tuple_t>::type::type &key, T &out)
+        template <std::size_t N> uint32_t get(const index_t<N> &key, T &out)
         {
             MDBOutVal id;
             if (!(*d_parent.d_txn)->get(std::get<N>(d_parent.d_parent->d_tuple).d_idx, keyConv(key), id)) {
@@ -454,18 +444,18 @@ public:
             return iter_t{ &d_parent, std::move(cursor), true, false };
         };
 
-        template <std::size_t N> iter_t find(const typename std::tuple_element<N, tuple_t>::type::type &key)
+        template <std::size_t N> iter_t find(const index_t<N> &key)
         {
             return genfind<N>(key, MDB_SET);
         }
 
-        template <std::size_t N> iter_t lower_bound(const typename std::tuple_element<N, tuple_t>::type::type &key)
+        template <std::size_t N> iter_t lower_bound(const index_t<N> &key)
         {
             return genfind<N>(key, MDB_SET_RANGE);
         }
 
         //! equal range - could possibly be expressed through genfind
-        template <std::size_t N> std::pair<iter_t, eiter_t> equal_range(const typename std::tuple_element<N, tuple_t>::type::type &key)
+        template <std::size_t N> std::pair<iter_t, eiter_t> equal_range(const index_t<N> &key)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
@@ -483,7 +473,7 @@ public:
         };
 
         //! equal range - could possibly be expressed through genfind
-        template <std::size_t N> std::pair<iter_t, eiter_t> prefix_range(const typename std::tuple_element<N, tuple_t>::type::type &key)
+        template <std::size_t N> std::pair<iter_t, eiter_t> prefix_range(const index_t<N> &key)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
@@ -572,14 +562,7 @@ public:
                 flags = MDB_APPEND;
             }
             (*d_txn)->put(d_parent->d_main, id, serToString(t), flags);
-
-#define insertMacro(N) std::get<N>(d_parent->d_tuple).put(*d_txn, t, id);
-            insertMacro(0);
-            insertMacro(1);
-            insertMacro(2);
-            insertMacro(3);
-#undef insertMacro
-
+            d_parent->forEachIndex([&](auto &&i) { i.put(*d_txn, t, id); });
             return id;
         }
 
@@ -612,12 +595,7 @@ public:
             if (const auto rc = mdb_drop(**d_txn, d_parent->d_main, 0)) {
                 throw LMDBError("Error database: ", rc);
             }
-#define clearMacro(N) std::get<N>(d_parent->d_tuple).clear(*d_txn);
-            clearMacro(0);
-            clearMacro(1);
-            clearMacro(2);
-            clearMacro(3);
-#undef clearMacro
+            d_parent->forEachIndex([&](auto &&i) { i.clear(*d_txn); });
         }
 
         //! commit this transaction
@@ -643,12 +621,7 @@ public:
         // clear this ID from all indexes
         void clearIndex(uint32_t id, const T &t)
         {
-#define clearMacro(N) std::get<N>(d_parent->d_tuple).del(*d_txn, t, id);
-            clearMacro(0);
-            clearMacro(1);
-            clearMacro(2);
-            clearMacro(3);
-#undef clearMacro
+            d_parent->forEachIndex([&](auto &&i) { i.del(*d_txn, t, id); });
         }
 
     public:
