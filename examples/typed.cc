@@ -11,18 +11,18 @@ using namespace std;
 using namespace LMDBSafe;
 
 struct DNSResourceRecord {
-    string qname; // index
-    uint16_t qtype{ 0 };
-    uint32_t domain_id{ 0 }; // index
-    string content;
-    uint32_t ttl{ 0 };
-    string ordername; // index
+    std::string qname; // index
+    std::uint16_t qtype{ 0 };
+    std::uint32_t domain_id{ 0 }; // index
+    std::string content;
+    std::uint32_t ttl{ 0 };
+    std::string ordername; // index
     bool auth{ true };
 };
 
 struct DomainInfo {
-    string qname;
-    string master;
+    std::string qname;
+    std::string master;
 };
 
 template <class Archive> void serialize(Archive &ar, DomainInfo &g, const unsigned int version)
@@ -47,7 +47,7 @@ struct compound {
     std::string operator()(const DNSResourceRecord &rr)
     {
         std::string ret;
-        uint32_t id = htonl(rr.domain_id);
+        std::uint32_t id = htonl(rr.domain_id);
         ret.assign(reinterpret_cast<char *>(&id), 4);
         ret.append(rr.ordername);
         return ret;
@@ -56,8 +56,8 @@ struct compound {
 
 int main()
 {
-    TypedDBI<DNSResourceRecord, index_on<DNSResourceRecord, string, &DNSResourceRecord::qname>,
-        index_on<DNSResourceRecord, uint32_t, &DNSResourceRecord::domain_id>, index_on_function<DNSResourceRecord, string, compound>>
+    TypedDBI<DNSResourceRecord, index_on<DNSResourceRecord, std::string, &DNSResourceRecord::qname>,
+        index_on<DNSResourceRecord, std::uint32_t, &DNSResourceRecord::domain_id>, index_on_function<DNSResourceRecord, std::string, compound>>
         tdbi(getMDBEnv("./typed.lmdb", MDB_NOSUBDIR, 0600), "records");
 
     TypedDBI<DomainInfo, index_on<DomainInfo, string, &DomainInfo::qname>> tdomains(tdbi.getEnv(), "domains");

@@ -12,12 +12,12 @@ void countDB(MDBEnv &env, MDBROTransaction &txn, const std::string &dbname)
     CPP_UTILITIES_UNUSED(env)
     auto db = txn->openDB(dbname, 0);
     auto cursor = txn->getCursor(db);
-    uint32_t count = 0;
+    std::uint32_t count = 0;
     MDBOutVal key, val;
     while (!cursor.get(key, val, count ? MDB_NEXT : MDB_FIRST)) {
-        cout << key.get<string>();
+        cout << key.get<std::string>();
         if (key.d_mdbval.mv_size == 4)
-            cout << " " << key.get<uint32_t>();
+            cout << " " << key.get<std::uint32_t>();
         cout << ": " << val.get<std::string>();
         cout << "\n";
         ++count;

@@ -54,7 +54,7 @@ int main(int argc, char **)
                 cout << data.get<string_view>() << endl;
 
                 struct Bert {
-                    uint16_t x, y;
+                    std::uint16_t x, y;
                 };
                 auto b = data.get_struct<Bert>();
                 cout << b.x << " " << b.y << endl;
@@ -64,7 +64,7 @@ int main(int argc, char **)
             exit(1);
         }
     } else {
-        size_t size = 1ULL * 4096 * 244140ULL;
+        std::size_t size = 1ULL * 4096 * 244140ULL;
         for (unsigned int n = 0;; ++n) {
             if (!(n % 16384)) {
                 size += 16384;
