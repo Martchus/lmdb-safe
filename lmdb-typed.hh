@@ -182,7 +182,7 @@ public:
         }
 
         //! Number of entries in the various indexes - should be the same
-        template <int N> size_t size()
+        template <std::size_t N> size_t size()
         {
             MDB_stat stat;
             mdb_stat(**d_parent.d_txn, std::get<N>(d_parent.d_parent->d_tuple).d_idx, &stat);
@@ -383,7 +383,7 @@ public:
             T d_t;
         };
 
-        template <int N> iter_t genbegin(MDB_cursor_op op)
+        template <std::size_t N> iter_t genbegin(MDB_cursor_op op)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
@@ -397,12 +397,12 @@ public:
             return iter_t{ &d_parent, std::move(cursor), true, false };
         };
 
-        template <int N> iter_t begin()
+        template <std::size_t N> iter_t begin()
         {
             return genbegin<N>(MDB_FIRST);
         }
 
-        template <int N> iter_t rbegin()
+        template <std::size_t N> iter_t rbegin()
         {
             return genbegin<N>(MDB_LAST);
         }
