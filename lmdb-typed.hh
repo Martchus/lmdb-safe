@@ -495,6 +495,13 @@ public:
 
     class LMDB_SAFE_EXPORT ROTransaction : public ReadonlyOperations<ROTransaction> {
     public:
+        explicit ROTransaction()
+            : ReadonlyOperations<ROTransaction>(*this)
+            , d_parent(nullptr)
+            , d_txn(nullptr)
+        {
+        }
+
         explicit ROTransaction(TypedDBI *parent)
             : ReadonlyOperations<ROTransaction>(*this)
             , d_parent(parent)
@@ -502,7 +509,7 @@ public:
         {
         }
 
-        explicit ROTransaction(TypedDBI *parent, std::shared_ptr<MDBROTransaction> txn)
+        explicit ROTransaction(TypedDBI *parent, const std::shared_ptr<MDBROTransaction> &txn)
             : ReadonlyOperations<ROTransaction>(*this)
             , d_parent(parent)
             , d_txn(txn)
@@ -515,12 +522,30 @@ public:
             , d_txn(std::move(rhs.d_txn))
 
         {
-            rhs.d_parent = 0;
+            rhs.d_parent = nullptr;
+        }
+
+        ROTransaction &operator=(ROTransaction &&rhs)
+        {
+            d_parent = rhs.d_parent;
+            d_txn = std::move(rhs.d_txn);
+            rhs.d_parent = nullptr;
+            return *this;
+        }
+
+        operator bool() const
+        {
+            return d_txn != nullptr;
         }
 
         std::shared_ptr<MDBROTransaction> getTransactionHandle()
         {
             return d_txn;
+        }
+
+        void close()
+        {
+            d_txn.reset();
         }
 
         typedef MDBROCursor cursor_t;
@@ -531,6 +556,13 @@ public:
 
     class LMDB_SAFE_EXPORT RWTransaction : public ReadonlyOperations<RWTransaction> {
     public:
+        explicit RWTransaction()
+            : ReadonlyOperations<RWTransaction>(*this)
+            , d_parent(nullptr)
+            , d_txn(nullptr)
+        {
+        }
+
         explicit RWTransaction(TypedDBI *parent)
             : ReadonlyOperations<RWTransaction>(*this)
             , d_parent(parent)
@@ -551,6 +583,19 @@ public:
             , d_txn(std::move(rhs.d_txn))
         {
             rhs.d_parent = 0;
+        }
+
+        RWTransaction &operator=(RWTransaction &&rhs)
+        {
+            d_parent = rhs.d_parent;
+            d_txn = std::move(rhs.d_txn);
+            rhs.d_parent = nullptr;
+            return *this;
+        }
+
+        operator bool() const
+        {
+            return d_txn != nullptr;
         }
 
         // insert something, with possibly a specific id
