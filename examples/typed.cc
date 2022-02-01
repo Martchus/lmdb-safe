@@ -5,6 +5,7 @@
 
 #include <arpa/inet.h>
 
+#include <iostream>
 #include <string>
 
 using namespace std;

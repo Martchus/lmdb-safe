@@ -2,6 +2,8 @@
 
 #include <c++utilities/conversion/stringconversion.h>
 
+#include <iostream>
+
 using namespace std;
 using namespace LMDBSafe;
 

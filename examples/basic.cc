@@ -1,5 +1,7 @@
 #include "../lmdb-safe.hh"
 
+#include <iostream>
+
 using namespace std;
 using namespace LMDBSafe;
 

@@ -5,6 +5,7 @@
 
 #include <c++utilities/application/global.h>
 
+#include <iostream>
 #include <sstream>
 
 using namespace std;
