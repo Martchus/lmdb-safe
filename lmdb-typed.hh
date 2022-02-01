@@ -66,12 +66,12 @@ template <class Class, typename Type, typename Parent> struct LMDB_SAFE_EXPORT L
         : d_parent(parent)
     {
     }
-    void put(MDBRWTransaction &txn, const Class &t, uint32_t id, unsigned int flags = 0)
+    void put(MDBRWTransaction &txn, const Class &t, std::uint32_t id, unsigned int flags = 0)
     {
         txn->put(d_idx, keyConv(d_parent->getMember(t)), id, flags);
     }
 
-    void del(MDBRWTransaction &txn, const Class &t, uint32_t id)
+    void del(MDBRWTransaction &txn, const Class &t, std::uint32_t id)
     {
         if (const auto rc = txn->del(d_idx, keyConv(d_parent->getMember(t)), id)) {
             throw LMDBError("Error deleting from index: ", rc);
@@ -174,7 +174,7 @@ public:
         }
 
         //! Number of entries in main database
-        size_t size()
+        std::size_t size()
         {
             MDB_stat stat;
             mdb_stat(**d_parent.d_txn, d_parent.d_parent->d_main, &stat);
@@ -182,7 +182,7 @@ public:
         }
 
         //! Number of entries in the various indexes - should be the same
-        template <std::size_t N> size_t size()
+        template <std::size_t N> std::size_t size()
         {
             MDB_stat stat;
             mdb_stat(**d_parent.d_txn, std::get<N>(d_parent.d_parent->d_tuple).d_idx, &stat);
@@ -190,7 +190,7 @@ public:
         }
 
         //! Get item with id, from main table directly
-        bool get(uint32_t id, T &t)
+        bool get(std::uint32_t id, T &t)
         {
             MDBOutVal data;
             if ((*d_parent.d_txn)->get(d_parent.d_parent->d_main, id, data))
@@ -201,23 +201,23 @@ public:
         }
 
         //! Get item through index N, then via the main database
-        template <std::size_t N> uint32_t get(const index_t<N> &key, T &out)
+        template <std::size_t N> std::uint32_t get(const index_t<N> &key, T &out)
         {
             MDBOutVal id;
             if (!(*d_parent.d_txn)->get(std::get<N>(d_parent.d_parent->d_tuple).d_idx, keyConv(key), id)) {
-                if (get(id.get<uint32_t>(), out))
-                    return id.get<uint32_t>();
+                if (get(id.get<std::uint32_t>(), out))
+                    return id.get<std::uint32_t>();
             }
             return 0;
         }
 
         //! Cardinality of index N
-        template <std::size_t N> uint32_t cardinality()
+        template <std::size_t N> std::uint32_t cardinality()
         {
             auto cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
             bool first = true;
             MDBOutVal key, data;
-            uint32_t count = 0;
+            std::uint32_t count = 0;
             while (!cursor.get(key, data, first ? MDB_FIRST : MDB_NEXT_NODUP)) {
                 ++count;
                 first = false;
@@ -357,12 +357,12 @@ public:
             }
 
             // get ID this iterator points to
-            uint32_t getID()
+            std::uint32_t getID()
             {
                 if (d_on_index)
-                    return d_id.get<uint32_t>();
+                    return d_id.get<std::uint32_t>();
                 else
-                    return d_key.get<uint32_t>();
+                    return d_key.get<std::uint32_t>();
             }
 
             const MDBOutVal &getKey()
@@ -554,7 +554,7 @@ public:
         }
 
         // insert something, with possibly a specific id
-        uint32_t put(const T &t, uint32_t id = 0)
+        std::uint32_t put(const T &t, std::uint32_t id = 0)
         {
             unsigned int flags = 0;
             if (!id) {
@@ -567,7 +567,7 @@ public:
         }
 
         // modify an item 'in place', plus update indexes
-        void modify(uint32_t id, std::function<void(T &)> func)
+        void modify(std::uint32_t id, std::function<void(T &)> func)
         {
             T t;
             if (!this->get(id, t))
@@ -579,7 +579,7 @@ public:
         }
 
         //! delete an item, and from indexes
-        void del(uint32_t id)
+        void del(std::uint32_t id)
         {
             T t;
             if (!this->get(id, t))
@@ -619,7 +619,7 @@ public:
 
     private:
         // clear this ID from all indexes
-        void clearIndex(uint32_t id, const T &t)
+        void clearIndex(std::uint32_t id, const T &t)
         {
             d_parent->forEachIndex([&](auto &&i) { i.del(*d_txn, t, id); });
         }
