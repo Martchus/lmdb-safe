@@ -43,7 +43,7 @@ use_cpp_utilities(LIBRARIES_VARIABLE "TEST_LIBRARIES")
 
 # find lmdb
 include(3rdParty)
-use_pkg_config_module(PKG_CONFIG_MODULES "lmdb")
+use_pkg_config_module(PKG_CONFIG_MODULES "lmdb" VISIBILITY PUBLIC)
 
 # find boost libraries (required by tests)
 option(BOOST_STATIC_LINKAGE "${STATIC_LINKAGE}" "link statically against Boost (instead of dynamically)")
