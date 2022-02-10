@@ -150,6 +150,13 @@ private:
             func(std::get<0>(tuple));
         }
     };
+    template <class Tuple> struct IndexIterator<Tuple, 0> {
+        static inline void apply(Tuple &tuple, auto &&func)
+        {
+            CPP_UTILITIES_UNUSED(tuple)
+            CPP_UTILITIES_UNUSED(func)
+        }
+    };
     void forEachIndex(auto &&func)
     {
         IndexIterator<tuple_t, std::tuple_size_v<tuple_t>>::apply(d_tuple, std::forward<decltype(func)>(func));
