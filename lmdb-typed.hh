@@ -2,6 +2,8 @@
 
 #include "./lmdb-safe.hh"
 
+#include <c++utilities/conversion/binaryconversion.h>
+#include <c++utilities/conversion/conversionexception.h>
 #include <c++utilities/conversion/stringbuilder.h>
 
 namespace LMDBSafe {
@@ -29,6 +31,80 @@ LMDB_SAFE_EXPORT unsigned int MDBGetMaxID(MDBRWTransaction &txn, MDBDbi &dbi);
 template <typename T> std::string serToString(const T &t);
 
 template <typename T> void serFromString(string_view str, T &ret);
+
+// define some "shortcuts" (to avoid full-blown serialization stuff for trivial cases)
+template <> inline std::string serToString(const std::string_view &t)
+{
+    return std::string(t);
+}
+
+template <> inline std::string serToString(const std::string &t)
+{
+    return t;
+}
+
+template <> inline std::string serToString(const std::uint8_t &t)
+{
+    return std::string(reinterpret_cast<const std::string::value_type *>(&t), sizeof(t));
+}
+
+template <> inline std::string serToString(const std::uint16_t &t)
+{
+    auto str = std::string(sizeof(t), '\0');
+    CppUtilities::LE::getBytes(t, str.data());
+    return str;
+}
+
+template <> inline std::string serToString(const std::uint32_t &t)
+{
+    auto str = std::string(sizeof(t), '\0');
+    CppUtilities::LE::getBytes(t, str.data());
+    return str;
+}
+
+template <> inline std::string serToString(const std::uint64_t &t)
+{
+    auto str = std::string(sizeof(t), '\0');
+    CppUtilities::LE::getBytes(t, str.data());
+    return str;
+}
+
+template <> inline void serFromString<std::string>(string_view str, std::string &ret)
+{
+    ret = std::string(str);
+}
+
+template <> inline void serFromString<>(string_view str, std::uint8_t &ret)
+{
+    if (str.size() != sizeof(ret)) {
+        throw CppUtilities::ConversionException(CppUtilities::argsToString("value not 8-bit, got ", str.size(), " bytes instead"));
+    }
+    ret = static_cast<std::uint8_t>(*str.data());
+}
+
+template <> inline void serFromString<>(string_view str, std::uint16_t &ret)
+{
+    if (str.size() != sizeof(ret)) {
+        throw CppUtilities::ConversionException(CppUtilities::argsToString("value not 16-bit, got ", str.size(), " bytes instead"));
+    }
+    ret = CppUtilities::LE::toUInt16(str.data());
+}
+
+template <> inline void serFromString<>(string_view str, std::uint32_t &ret)
+{
+    if (str.size() != sizeof(ret)) {
+        throw CppUtilities::ConversionException(CppUtilities::argsToString("value not 32-bit, got ", str.size(), " bytes instead"));
+    }
+    ret = CppUtilities::LE::toUInt32(str.data());
+}
+
+template <> inline void serFromString<>(string_view str, std::uint64_t &ret)
+{
+    if (str.size() != sizeof(ret)) {
+        throw CppUtilities::ConversionException(CppUtilities::argsToString("value not 64-bit, got ", str.size(), " bytes instead"));
+    }
+    ret = CppUtilities::LE::toUInt64(str.data());
+}
 
 /** This is the serialization interface for keys.
     You need to define your these functions for the types you'd like to use as keys.
