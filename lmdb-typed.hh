@@ -321,8 +321,8 @@ public:
         // when on index, indirect
         // we can be limited to one key, or iterate over entire database
         // iter requires you to put the cursor in the right place first!
-        template <template <typename> class StorageType> struct iter_t {
-            using UsingDirectStorage = CppUtilities::Traits::IsSpecializationOf<StorageType<T>, DirectStorage>;
+        template <template <typename> class StorageType, typename ElementType = T> struct iter_t {
+            using UsingDirectStorage = CppUtilities::Traits::IsSpecializationOf<StorageType<ElementType>, DirectStorage>;
 
             explicit iter_t(Parent *parent, typename Parent::cursor_t &&cursor, bool on_index, bool one_key, bool end = false)
                 : d_parent(parent)
@@ -376,22 +376,22 @@ public:
                 return d_on_index ? d_data.get<string_view>() : d_id.get<string_view>();
             }
 
-            StorageType<T> &allocatePointer()
+            StorageType<ElementType> &allocatePointer()
             {
                 static_assert(!UsingDirectStorage::value, "Cannot call getPointer() when using direct storage.");
-                static_assert(
-                    CppUtilities::Traits::IsSpecializingAnyOf<StorageType<T>, std::unique_ptr, std::shared_ptr>(), "Pointer type not supported.");
+                static_assert(CppUtilities::Traits::IsSpecializingAnyOf<StorageType<ElementType>, std::unique_ptr, std::shared_ptr>(),
+                    "Pointer type not supported.");
                 if (d_t != nullptr) {
                     return d_t;
                 }
-                if constexpr (CppUtilities::Traits::IsSpecializationOf<StorageType<T>, std::unique_ptr>()) {
+                if constexpr (CppUtilities::Traits::IsSpecializationOf<StorageType<ElementType>, std::unique_ptr>()) {
                     return d_t = std::make_unique<T>();
-                } else if constexpr (CppUtilities::Traits::IsSpecializationOf<StorageType<T>, std::shared_ptr>()) {
+                } else if constexpr (CppUtilities::Traits::IsSpecializationOf<StorageType<ElementType>, std::shared_ptr>()) {
                     return d_t = std::make_shared<T>();
                 }
             }
 
-            StorageType<T> &getPointer()
+            StorageType<ElementType> &getPointer()
             {
                 static_assert(!UsingDirectStorage::value, "Cannot call getPointer() when using direct storage.");
                 if (!d_deserialized) {
@@ -402,7 +402,7 @@ public:
                 return d_t;
             }
 
-            T &derefValue()
+            ElementType &derefValue()
             {
                 if constexpr (UsingDirectStorage::value) {
                     return d_t;
@@ -412,7 +412,7 @@ public:
                 }
             }
 
-            T &value()
+            ElementType &value()
             {
                 auto &res = derefValue();
                 if (!d_deserialized) {
@@ -422,12 +422,12 @@ public:
                 return res;
             }
 
-            const T &operator*()
+            const ElementType &operator*()
             {
                 return value();
             }
 
-            const T *operator->()
+            const ElementType *operator->()
             {
                 return &value();
             }
@@ -485,7 +485,7 @@ public:
             bool d_one_key;
             bool d_end;
             bool d_deserialized;
-            CppUtilities::Traits::Conditional<UsingDirectStorage, T, StorageType<T>> d_t;
+            CppUtilities::Traits::Conditional<UsingDirectStorage, ElementType, StorageType<ElementType>> d_t;
         };
 
         template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> genbegin(MDB_cursor_op op)
@@ -525,6 +525,20 @@ public:
 
             return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
         };
+
+        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<DirectStorage, std::uint32_t> begin_idx()
+        {
+            typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
+
+            MDBOutVal out, id;
+
+            if (cursor.get(out, id, MDB_FIRST)) {
+                // on_index, one_key, end
+                return iter_t<DirectStorage, std::uint32_t>{ &d_parent, std::move(cursor), false, false, true };
+            }
+
+            return iter_t<DirectStorage, std::uint32_t>{ &d_parent, std::move(cursor), false, false };
+        }
 
         eiter_t end()
         {
