@@ -236,61 +236,47 @@ public:
         struct eiter_t {
         };
 
+        //! Store the object as immediate member of iter_t (as opposed to using an std::unique_ptr or std::shared_ptr)
+        template <typename> struct DirectStorage {
+        };
+
         // can be on main, or on an index
         // when on main, return data directly
         // when on index, indirect
         // we can be limited to one key, or iterate over entire database
         // iter requires you to put the cursor in the right place first!
-        struct iter_t {
+        template <template <typename> class StorageType> struct iter_t {
+            using UsingDirectStorage = CppUtilities::Traits::IsSpecializationOf<StorageType<T>, DirectStorage>;
+
             explicit iter_t(Parent *parent, typename Parent::cursor_t &&cursor, bool on_index, bool one_key, bool end = false)
                 : d_parent(parent)
                 , d_cursor(std::move(cursor))
-                , d_on_index(on_index)
-                , // is this an iterator on main database or on index?
-                d_one_key(one_key)
-                , // should we stop at end of key? (equal range)
-                d_end(end)
+                , d_on_index(on_index) // is this an iterator on main database or on index?
+                , d_one_key(one_key) // should we stop at end of key? (equal range)
+                , d_end(end)
+                , d_deserialized(false)
             {
                 if (d_end)
                     return;
-                d_prefix.clear();
-
-                if (d_cursor.get(d_key, d_id, MDB_GET_CURRENT)) {
+                if (d_cursor.get(d_key, d_id, MDB_GET_CURRENT))
                     d_end = true;
-                    return;
-                }
-
-                if (d_on_index) {
-                    if ((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
-                        throw LMDBError("Missing id in constructor");
-                    serFromString(d_data.get<string_view>(), d_t);
-                } else
-                    serFromString(d_id.get<string_view>(), d_t);
+                else if (d_on_index && (*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
+                    throw LMDBError("Missing id in constructor");
             }
 
             explicit iter_t(Parent *parent, typename Parent::cursor_t &&cursor, string_view prefix)
                 : d_parent(parent)
                 , d_cursor(std::move(cursor))
-                , d_on_index(true)
-                , // is this an iterator on main database or on index?
-                d_one_key(false)
                 , d_prefix(prefix)
+                , d_on_index(true) // is this an iterator on main database or on index?
+                , d_one_key(false)
                 , d_end(false)
+                , d_deserialized(false)
             {
-                if (d_end)
-                    return;
-
-                if (d_cursor.get(d_key, d_id, MDB_GET_CURRENT)) {
+                if (d_cursor.get(d_key, d_id, MDB_GET_CURRENT))
                     d_end = true;
-                    return;
-                }
-
-                if (d_on_index) {
-                    if ((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
-                        throw LMDBError("Missing id in constructor");
-                    serFromString(d_data.get<string_view>(), d_t);
-                } else
-                    serFromString(d_id.get<string_view>(), d_t);
+                else if (d_on_index && (*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
+                    throw LMDBError("Missing id in constructor");
             }
 
             std::function<bool(const MDBOutVal &)> filter;
@@ -309,47 +295,84 @@ public:
                 return d_end;
             }
 
-            const T &operator*()
+            string_view getRawData()
             {
+                return d_on_index ? d_data.get<string_view>() : d_id.get<string_view>();
+            }
+
+            StorageType<T> &allocatePointer()
+            {
+                static_assert(!UsingDirectStorage::value, "Cannot call getPointer() when using direct storage.");
+                static_assert(
+                    CppUtilities::Traits::IsSpecializingAnyOf<StorageType<T>, std::unique_ptr, std::shared_ptr>(), "Pointer type not supported.");
+                if (d_t != nullptr) {
+                    return d_t;
+                }
+                if constexpr (CppUtilities::Traits::IsSpecializationOf<StorageType<T>, std::unique_ptr>()) {
+                    return d_t = std::make_unique<T>();
+                } else if constexpr (CppUtilities::Traits::IsSpecializationOf<StorageType<T>, std::shared_ptr>()) {
+                    return d_t = std::make_shared<T>();
+                }
+            }
+
+            StorageType<T> &getPointer()
+            {
+                static_assert(!UsingDirectStorage::value, "Cannot call getPointer() when using direct storage.");
+                if (!d_deserialized) {
+                    allocatePointer();
+                    serFromString(getRawData(), *d_t);
+                    d_deserialized = true;
+                }
                 return d_t;
             }
 
-            const T *operator->()
+            T &derefValue()
             {
-                return &d_t;
+                if constexpr (UsingDirectStorage::value) {
+                    return d_t;
+                } else {
+                    allocatePointer();
+                    return *d_t;
+                }
             }
 
             T &value()
             {
-                return d_t;
+                auto &res = derefValue();
+                if (!d_deserialized) {
+                    serFromString(getRawData(), res);
+                    d_deserialized = true;
+                }
+                return res;
+            }
+
+            const T &operator*()
+            {
+                return value();
+            }
+
+            const T *operator->()
+            {
+                return &value();
             }
 
             // implements generic ++ or --
             iter_t &genoperator(MDB_cursor_op dupop, MDB_cursor_op op)
             {
-                MDBOutVal data;
+                d_deserialized = false;
             next:;
                 const auto rc = d_cursor.get(d_key, d_id, d_one_key ? dupop : op);
                 if (rc == MDB_NOTFOUND) {
                     d_end = true;
                 } else if (rc) {
                     throw LMDBError("Unable to get in genoperator: ", rc);
-                } else if (!d_prefix.empty() && d_key.get<std::string>().rfind(d_prefix, 0) != 0) {
+                } else if (!d_prefix.empty() && d_key.get<std::string_view>().rfind(d_prefix, 0) != 0) {
                     d_end = true;
                 } else {
-                    if (d_on_index) {
-                        if ((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, data))
-                            throw LMDBError("Missing id field in genoperator");
-                        if (filter && !filter(data))
-                            goto next;
-
-                        serFromString(data.get<string_view>(), d_t);
-                    } else {
-                        if (filter && !filter(data))
-                            goto next;
-
-                        serFromString(d_id.get<string_view>(), d_t);
-                    }
+                    if (d_on_index && (*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
+                        throw LMDBError("Missing id field in genoperator");
+                    if (filter && !filter(d_data))
+                        goto next;
                 }
                 return *this;
             }
@@ -366,10 +389,7 @@ public:
             // get ID this iterator points to
             std::uint32_t getID()
             {
-                if (d_on_index)
-                    return d_id.get<std::uint32_t>();
-                else
-                    return d_key.get<std::uint32_t>();
+                return d_on_index ? d_id.get<std::uint32_t>() : d_key.get<std::uint32_t>();
             }
 
             const MDBOutVal &getKey()
@@ -377,20 +397,22 @@ public:
                 return d_key;
             }
 
+        private:
             // transaction we are part of
             Parent *d_parent;
             typename Parent::cursor_t d_cursor;
 
             // gcc complains if I don't zero-init these, which is worrying XXX
+            std::string d_prefix;
             MDBOutVal d_key{ { 0, 0 } }, d_data{ { 0, 0 } }, d_id{ { 0, 0 } };
             bool d_on_index;
             bool d_one_key;
-            std::string d_prefix;
-            bool d_end{ false };
-            T d_t;
+            bool d_end;
+            bool d_deserialized;
+            CppUtilities::Traits::Conditional<UsingDirectStorage, T, StorageType<T>> d_t;
         };
 
-        template <std::size_t N> iter_t genbegin(MDB_cursor_op op)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> genbegin(MDB_cursor_op op)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
@@ -398,23 +420,23 @@ public:
 
             if (cursor.get(out, id, op)) {
                 // on_index, one_key, end
-                return iter_t{ &d_parent, std::move(cursor), true, false, true };
+                return iter_t<StorageType>{ &d_parent, std::move(cursor), true, false, true };
             }
 
-            return iter_t{ &d_parent, std::move(cursor), true, false };
+            return iter_t<StorageType>{ &d_parent, std::move(cursor), true, false };
         };
 
-        template <std::size_t N> iter_t begin()
+        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> begin()
         {
-            return genbegin<N>(MDB_FIRST);
+            return genbegin<N, StorageType>(MDB_FIRST);
         }
 
-        template <std::size_t N> iter_t rbegin()
+        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> rbegin()
         {
-            return genbegin<N>(MDB_LAST);
+            return genbegin<N, StorageType>(MDB_LAST);
         }
 
-        iter_t begin()
+        template <template <typename> class StorageType = DirectStorage> iter_t<StorageType> begin()
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(d_parent.d_parent->d_main);
 
@@ -422,10 +444,10 @@ public:
 
             if (cursor.get(out, id, MDB_FIRST)) {
                 // on_index, one_key, end
-                return iter_t{ &d_parent, std::move(cursor), false, false, true };
+                return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false, true };
             }
 
-            return iter_t{ &d_parent, std::move(cursor), false, false };
+            return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
         };
 
         eiter_t end()
@@ -434,7 +456,8 @@ public:
         }
 
         // basis for find, lower_bound
-        template <std::size_t N> iter_t genfind(const typename std::tuple_element<N, tuple_t>::type::type &key, MDB_cursor_op op)
+        template <std::size_t N, template <typename> class StorageType>
+        iter_t<StorageType> genfind(const typename std::tuple_element<N, tuple_t>::type::type &key, MDB_cursor_op op)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
@@ -445,24 +468,25 @@ public:
 
             if (cursor.get(out, id, op)) {
                 // on_index, one_key, end
-                return iter_t{ &d_parent, std::move(cursor), true, false, true };
+                return iter_t<StorageType>{ &d_parent, std::move(cursor), true, false, true };
             }
 
-            return iter_t{ &d_parent, std::move(cursor), true, false };
+            return iter_t<StorageType>{ &d_parent, std::move(cursor), true, false };
         };
 
-        template <std::size_t N> iter_t find(const index_t<N> &key)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> find(const index_t<N> &key)
         {
-            return genfind<N>(key, MDB_SET);
+            return genfind<N, StorageType>(key, MDB_SET);
         }
 
-        template <std::size_t N> iter_t lower_bound(const index_t<N> &key)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> lower_bound(const index_t<N> &key)
         {
-            return genfind<N>(key, MDB_SET_RANGE);
+            return genfind<N, StorageType>(key, MDB_SET_RANGE);
         }
 
         //! equal range - could possibly be expressed through genfind
-        template <std::size_t N> std::pair<iter_t, eiter_t> equal_range(const index_t<N> &key)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage>
+        std::pair<iter_t<StorageType>, eiter_t> equal_range(const index_t<N> &key)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
@@ -473,14 +497,15 @@ public:
 
             if (cursor.get(out, id, MDB_SET)) {
                 // on_index, one_key, end
-                return { iter_t{ &d_parent, std::move(cursor), true, true, true }, eiter_t() };
+                return { iter_t<StorageType>{ &d_parent, std::move(cursor), true, true, true }, eiter_t() };
             }
 
-            return { iter_t{ &d_parent, std::move(cursor), true, true }, eiter_t() };
+            return { iter_t<StorageType>{ &d_parent, std::move(cursor), true, true }, eiter_t() };
         };
 
         //! equal range - could possibly be expressed through genfind
-        template <std::size_t N> std::pair<iter_t, eiter_t> prefix_range(const index_t<N> &key)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage>
+        std::pair<iter_t<StorageType>, eiter_t> prefix_range(const index_t<N> &key)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
@@ -491,10 +516,10 @@ public:
 
             if (cursor.get(out, id, MDB_SET_RANGE)) {
                 // on_index, one_key, end
-                return { iter_t{ &d_parent, std::move(cursor), true, true, true }, eiter_t() };
+                return { iter_t<StorageType>{ &d_parent, std::move(cursor), true, true, true }, eiter_t() };
             }
 
-            return { iter_t(&d_parent, std::move(cursor), keyString), eiter_t() };
+            return { iter_t<StorageType>(&d_parent, std::move(cursor), keyString), eiter_t() };
         };
 
         Parent &d_parent;
