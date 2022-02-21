@@ -10,20 +10,21 @@ namespace LMDBSafe {
 
 /* 
    Open issues:
-
-   What is an error? What is an exception?
-   could id=0 be magic? ('no such id')
-     yes
    Perhaps use the separate index concept from multi_index
    perhaps get eiter to be of same type so for(auto& a : x) works
      make it more value "like" with unique_ptr
 */
 
+/*!
+ * \brief The type used to store IDs. "0" indicates "no such ID".
+ */
+using IDType = std::uint32_t;
+
 /** Return the highest ID used in a database. Returns 0 for an empty DB.
     This makes us start everything at ID=1, which might make it possible to 
     treat id 0 as special
 */
-LMDB_SAFE_EXPORT unsigned int MDBGetMaxID(MDBRWTransaction &txn, MDBDbi &dbi);
+LMDB_SAFE_EXPORT IDType MDBGetMaxID(MDBRWTransaction &txn, MDBDbi &dbi);
 
 /** This is the serialization interface.
     You need to define your these functions for the types you'd like to store.
@@ -142,12 +143,12 @@ template <class Class, typename Type, typename Parent> struct LMDB_SAFE_EXPORT L
         : d_parent(parent)
     {
     }
-    void put(MDBRWTransaction &txn, const Class &t, std::uint32_t id, unsigned int flags = 0)
+    void put(MDBRWTransaction &txn, const Class &t, IDType id, unsigned int flags = 0)
     {
         txn->put(d_idx, keyConv(d_parent->getMember(t)), id, flags);
     }
 
-    void del(MDBRWTransaction &txn, const Class &t, std::uint32_t id)
+    void del(MDBRWTransaction &txn, const Class &t, IDType id)
     {
         if (const auto rc = txn->del(d_idx, keyConv(d_parent->getMember(t)), id)) {
             throw LMDBError("Error deleting from index: ", rc);
@@ -273,7 +274,7 @@ public:
         }
 
         //! Get item with id, from main table directly
-        bool get(std::uint32_t id, T &t)
+        bool get(IDType id, T &t)
         {
             MDBOutVal data;
             if ((*d_parent.d_txn)->get(d_parent.d_parent->d_main, id, data))
@@ -284,23 +285,23 @@ public:
         }
 
         //! Get item through index N, then via the main database
-        template <std::size_t N> std::uint32_t get(const index_t<N> &key, T &out)
+        template <std::size_t N> IDType get(const index_t<N> &key, T &out)
         {
             MDBOutVal id;
             if (!(*d_parent.d_txn)->get(std::get<N>(d_parent.d_parent->d_tuple).d_idx, keyConv(key), id)) {
-                if (get(id.get<std::uint32_t>(), out))
-                    return id.get<std::uint32_t>();
+                if (get(id.get<IDType>(), out))
+                    return id.get<IDType>();
             }
             return 0;
         }
 
         //! Cardinality of index N
-        template <std::size_t N> std::uint32_t cardinality()
+        template <std::size_t N> IDType cardinality()
         {
             auto cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
             bool first = true;
             MDBOutVal key, data;
-            std::uint32_t count = 0;
+            IDType count = 0;
             while (!cursor.get(key, data, first ? MDB_FIRST : MDB_NEXT_NODUP)) {
                 ++count;
                 first = false;
@@ -463,9 +464,9 @@ public:
             }
 
             // get ID this iterator points to
-            std::uint32_t getID()
+            IDType getID()
             {
-                return d_on_index ? d_id.get<std::uint32_t>() : d_key.get<std::uint32_t>();
+                return d_on_index ? d_id.get<IDType>() : d_key.get<IDType>();
             }
 
             const MDBOutVal &getKey()
@@ -526,7 +527,7 @@ public:
             return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
         };
 
-        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<DirectStorage, std::uint32_t> begin_idx()
+        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<DirectStorage, IDType> begin_idx()
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
 
@@ -534,10 +535,10 @@ public:
 
             if (cursor.get(out, id, MDB_FIRST)) {
                 // on_index, one_key, end
-                return iter_t<DirectStorage, std::uint32_t>{ &d_parent, std::move(cursor), false, false, true };
+                return iter_t<DirectStorage, IDType>{ &d_parent, std::move(cursor), false, false, true };
             }
 
-            return iter_t<DirectStorage, std::uint32_t>{ &d_parent, std::move(cursor), false, false };
+            return iter_t<DirectStorage, IDType>{ &d_parent, std::move(cursor), false, false };
         }
 
         eiter_t end()
@@ -721,7 +722,7 @@ public:
         }
 
         // insert something, with possibly a specific id
-        std::uint32_t put(const T &t, std::uint32_t id = 0)
+        IDType put(const T &t, IDType id = 0)
         {
             unsigned int flags = 0;
             if (!id) {
@@ -734,7 +735,7 @@ public:
         }
 
         // modify an item 'in place', plus update indexes
-        void modify(std::uint32_t id, std::function<void(T &)> func)
+        void modify(IDType id, std::function<void(T &)> func)
         {
             T t;
             if (!this->get(id, t))
@@ -746,7 +747,7 @@ public:
         }
 
         //! delete an item, and from indexes
-        void del(std::uint32_t id)
+        void del(IDType id)
         {
             T t;
             if (!this->get(id, t))
@@ -786,7 +787,7 @@ public:
 
     private:
         // clear this ID from all indexes
-        void clearIndex(std::uint32_t id, const T &t)
+        void clearIndex(IDType id, const T &t)
         {
             d_parent->forEachIndex([&](auto &&i) { i.del(*d_txn, t, id); });
         }

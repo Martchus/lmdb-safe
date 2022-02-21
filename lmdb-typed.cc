@@ -2,13 +2,13 @@
 
 namespace LMDBSafe {
 
-unsigned int MDBGetMaxID(MDBRWTransaction &txn, MDBDbi &dbi)
+IDType MDBGetMaxID(MDBRWTransaction &txn, MDBDbi &dbi)
 {
     auto cursor = txn->getRWCursor(dbi);
     MDBOutVal maxidval, maxcontent;
-    unsigned int maxid{ 0 };
+    auto maxid = IDType(0);
     if (!cursor.get(maxidval, maxcontent, MDB_LAST)) {
-        maxid = maxidval.get<unsigned int>();
+        maxid = maxidval.get<IDType>();
     }
     return maxid;
 }
