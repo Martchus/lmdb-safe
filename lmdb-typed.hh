@@ -8,32 +8,37 @@
 
 namespace LMDBSafe {
 
-/* 
-   Open issues:
-   Perhaps use the separate index concept from multi_index
-   perhaps get eiter to be of same type so for(auto& a : x) works
-     make it more value "like" with unique_ptr
-*/
-
 /*!
  * \brief The type used to store IDs. "0" indicates "no such ID".
  */
 using IDType = std::uint32_t;
 
-/** Return the highest ID used in a database. Returns 0 for an empty DB.
-    This makes us start everything at ID=1, which might make it possible to 
-    treat id 0 as special
-*/
+/*!
+ * \brief Returns the highest ID used in a database. Returns 0 for an empty DB.
+ * \remarks
+ * This makes us start everything at ID "1", which might make it possible to
+ * treat id 0 as special.
+ */
 LMDB_SAFE_EXPORT IDType MDBGetMaxID(MDBRWTransaction &txn, MDBDbi &dbi);
 
-/** This is the serialization interface.
-    You need to define your these functions for the types you'd like to store.
-*/
+/*!
+ * \brief Converts \a t to an std::string.
+ *
+ * This is the serialization interface. You need to define this function for the
+ * types you'd like to store.
+ */
 template <typename T> std::string serToString(const T &t);
 
+/*!
+ * \brief Initializes \a ret from \a str.
+ *
+ * This is the deserialization interface. You need to define this function for the
+ * types you'd like to store.
+ */
 template <typename T> void serFromString(string_view str, T &ret);
 
-// define some "shortcuts" (to avoid full-blown serialization stuff for trivial cases)
+/// \cond
+/// Define some "shortcuts" (to avoid full-blown serialization stuff for trivial cases):
 template <> inline std::string serToString(const std::string_view &t)
 {
     return std::string(t);
@@ -107,9 +112,14 @@ template <> inline void serFromString<>(string_view str, std::uint64_t &ret)
     ret = CppUtilities::LE::toUInt64(str.data());
 }
 
-/** This is the serialization interface for keys.
-    You need to define your these functions for the types you'd like to use as keys.
-*/
+/// \endcond
+
+/*!
+ * \brief Converts \a t to an std::string.
+ *
+ * This is the serialization interface for keys. You need to define your this function
+ * for the types you'd like to use as keys.
+ */
 template <class T, class Enable> inline std::string keyConv(const T &t);
 
 template <class T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type * = nullptr> inline string_view keyConv(const T &t)
@@ -117,6 +127,8 @@ template <class T, typename std::enable_if<std::is_arithmetic<T>::value, T>::typ
     return string_view(reinterpret_cast<const char *>(&t), sizeof(t));
 }
 
+/// \cond
+/// Define keyConv for trivial cases:
 template <class T, typename std::enable_if<std::is_same<T, std::string>::value, T>::type * = nullptr> inline string_view keyConv(const T &t)
 {
     return t;
@@ -126,6 +138,7 @@ template <class T, typename std::enable_if<std::is_same<T, string_view>::value, 
 {
     return t;
 }
+/// \endcond
 
 /*!
  * \brief The LMDBIndexOps struct implements index operations, but only the operations that
@@ -135,7 +148,7 @@ template <class T, typename std::enable_if<std::is_same<T, string_view>::value, 
  * only includes calls that should be ignored for empty indexes.
  *
  * This class only needs methods that must happen for all indexes at once. So specifically, *not*
- * size<t> or get<t>. People ask for those themselves, and should no do that on indexes that
+ * size<t> or get<t>. People ask for those themselves, and should not do that on indexes that
  * don't exist.
  */
 template <class Class, typename Type, typename Parent> struct LMDB_SAFE_EXPORT LMDBIndexOps {
@@ -170,8 +183,9 @@ template <class Class, typename Type, typename Parent> struct LMDB_SAFE_EXPORT L
     Parent *d_parent;
 };
 
-/** This is an index on a field in a struct, it derives from the LMDBIndexOps */
-
+/*!
+ * \brief The index_on struct is used to declare an index on a member variable of a particular type.
+ */
 template <class Class, typename Type, Type Class::*PtrToMember> struct index_on : LMDBIndexOps<Class, Type, index_on<Class, Type, PtrToMember>> {
     index_on()
         : LMDBIndexOps<Class, Type, index_on<Class, Type, PtrToMember>>(this)
@@ -185,7 +199,10 @@ template <class Class, typename Type, Type Class::*PtrToMember> struct index_on 
     typedef Type type;
 };
 
-/** This is a calculated index */
+/*!
+ * \brief The index_on_function struct is used to declare an index which is dynamically computed via
+ *        a function.
+ */
 template <class Class, typename Type, class Func> struct index_on_function : LMDBIndexOps<Class, Type, index_on_function<Class, Type, Func>> {
     index_on_function()
         : LMDBIndexOps<Class, Type, index_on_function<Class, Type, Func>>(this)
@@ -204,6 +221,11 @@ template <class Class, typename Type, class Func> struct index_on_function : LMD
  * \brief The TypedDBI class is the main class.
  * \tparam T Specifies the type to store within the database.
  * \tparam I Specifies an index, should be an instantiation of index_on.
+ *
+ * Open issues:
+ * - Perhaps use the separate index concept from multi_index.
+ * - Perhaps get eiter to be of same type so for(auto& a : x) works
+ *   make it more value "like" with unique_ptr.
  */
 template <typename T, typename... I> class LMDB_SAFE_EXPORT TypedDBI {
 public:
@@ -214,6 +236,7 @@ public:
 private:
     tuple_t d_tuple;
 
+    /// \cond
     template <class Tuple, std::size_t N> struct IndexIterator {
         static inline void apply(Tuple &tuple, auto &&func)
         {
@@ -238,6 +261,7 @@ private:
     {
         IndexIterator<tuple_t, std::tuple_size_v<tuple_t>>::apply(d_tuple, std::forward<decltype(func)>(func));
     }
+    /// \endcond
 
 public:
     TypedDBI(std::shared_ptr<MDBEnv> env, string_view name)
@@ -249,8 +273,9 @@ public:
         forEachIndex([&](auto &&i) { i.openDB(d_env, CppUtilities::argsToString(name, '_', index++), MDB_CREATE | MDB_DUPFIXED | MDB_DUPSORT); });
     }
 
-    // We support readonly and rw transactions. Here we put the Readonly operations
-    // which get sourced by both kinds of transactions
+    /*!
+     * \brief The ReadonlyOperations struct defines read-only operations.
+     */
     template <class Parent> struct ReadonlyOperations {
         ReadonlyOperations(Parent &parent)
             : d_parent(parent)
@@ -309,7 +334,9 @@ public:
             return count;
         }
 
-        //! End iderator type
+        /*!
+         * \brief The eiter_t struct is the end iterator.
+         */
         struct eiter_t {
         };
 
@@ -317,11 +344,18 @@ public:
         template <typename> struct DirectStorage {
         };
 
-        // can be on main, or on an index
-        // when on main, return data directly
-        // when on index, indirect
-        // we can be limited to one key, or iterate over entire database
-        // iter requires you to put the cursor in the right place first!
+        /*!
+         * \brief The iter_t struct is the iterator type for walking through the database rows.
+         * \remarks
+         * - The iterator can be on the main database or on an index. It returns the data directly on
+         *   the main database and indirectly when on an index.
+         * - An iterator can be limited to one key or iterate over the entire database.
+         * - The iter_t struct requires you to put the cursor in the right place first.
+         * - The object can be stored as direct member of iter_t or as std::unique_ptr or std::shared_ptr
+         *   by specifying the corresponding template as \tp ElementType. The pointer can then be accessed
+         *   via getPointer(). Note that the returned pointer object is re-used when the iterator is incremented
+         *   or decremented unless the owned object is moved into another pointer object.
+         */
         template <template <typename> class StorageType, typename ElementType = T> struct iter_t {
             using UsingDirectStorage = CppUtilities::Traits::IsSpecializationOf<StorageType<ElementType>, DirectStorage>;
 
@@ -345,7 +379,7 @@ public:
                 : d_parent(parent)
                 , d_cursor(std::move(cursor))
                 , d_prefix(prefix)
-                , d_on_index(true) // is this an iterator on main database or on index?
+                , d_on_index(true)
                 , d_one_key(false)
                 , d_end(false)
                 , d_deserialized(false)
@@ -356,7 +390,6 @@ public:
                     throw LMDBError("Missing id in constructor");
             }
 
-            std::function<bool(const MDBOutVal &)> filter;
             void del()
             {
                 d_cursor.del();
@@ -433,7 +466,7 @@ public:
                 return &value();
             }
 
-            // implements generic ++ or --
+            //! Implements generic ++ or --.
             iter_t &genoperator(MDB_cursor_op dupop, MDB_cursor_op op)
             {
                 d_deserialized = false;
@@ -463,7 +496,7 @@ public:
                 return genoperator(MDB_PREV_DUP, MDB_PREV);
             }
 
-            // get ID this iterator points to
+            //! Returns the ID this iterator points to.
             IDType getID()
             {
                 return d_on_index ? d_id.get<IDType>() : d_key.get<IDType>();
@@ -474,14 +507,17 @@ public:
                 return d_key;
             }
 
+            //! A filter to allow skipping rows by their raw value.
+            std::function<bool(const MDBOutVal &)> filter;
+
         private:
-            // transaction we are part of
+            //! The transaction the iterator is part of.
             Parent *d_parent;
             typename Parent::cursor_t d_cursor;
 
-            // gcc complains if I don't zero-init these, which is worrying XXX
             std::string d_prefix;
             MDBOutVal d_key{ { 0, 0 } }, d_data{ { 0, 0 } }, d_id{ { 0, 0 } };
+            //! Whether it is an iterator on the main database or an index.
             bool d_on_index;
             bool d_one_key;
             bool d_end;
@@ -575,7 +611,7 @@ public:
             return genfind<N, StorageType>(key, MDB_SET_RANGE);
         }
 
-        //! equal range - could possibly be expressed through genfind
+        //! Returns the range matching the specified \a key.
         template <std::size_t N, template <typename> class StorageType = DirectStorage>
         std::pair<iter_t<StorageType>, eiter_t> equal_range(const index_t<N> &key)
         {
@@ -594,7 +630,7 @@ public:
             return { iter_t<StorageType>{ &d_parent, std::move(cursor), true, true }, eiter_t() };
         };
 
-        //! equal range - could possibly be expressed through genfind
+        //! Returns the range where the key starts with the specified \a key.
         template <std::size_t N, template <typename> class StorageType = DirectStorage>
         std::pair<iter_t<StorageType>, eiter_t> prefix_range(const index_t<N> &key)
         {
@@ -616,6 +652,9 @@ public:
         Parent &d_parent;
     };
 
+    /*!
+     * \brief The ROTransaction class represents a read-only transaction.
+     */
     class LMDB_SAFE_EXPORT ROTransaction : public ReadonlyOperations<ROTransaction> {
     public:
         explicit ROTransaction()
@@ -677,6 +716,9 @@ public:
         std::shared_ptr<MDBROTransaction> d_txn;
     };
 
+    /*!
+     * \brief The RWTransaction class represents a read-write transaction.
+     */
     class LMDB_SAFE_EXPORT RWTransaction : public ReadonlyOperations<RWTransaction> {
     public:
         explicit RWTransaction()
@@ -721,7 +763,7 @@ public:
             return d_txn != nullptr;
         }
 
-        // insert something, with possibly a specific id
+        //! Inserts something, with possibly a specific id.
         IDType put(const T &t, IDType id = 0)
         {
             unsigned int flags = 0;
@@ -734,7 +776,7 @@ public:
             return id;
         }
 
-        // modify an item 'in place', plus update indexes
+        //! Modifies an item "in place" updating indexes.
         void modify(IDType id, std::function<void(T &)> func)
         {
             T t;
@@ -746,7 +788,7 @@ public:
             put(t, id);
         }
 
-        //! delete an item, and from indexes
+        //! Deletes an item from the main database and from indexes.
         void del(IDType id)
         {
             T t;
@@ -757,7 +799,7 @@ public:
             clearIndex(id, t);
         }
 
-        //! clear database & indexes
+        //! Clears the database and indexes.
         void clear()
         {
             if (const auto rc = mdb_drop(**d_txn, d_parent->d_main, 0)) {
@@ -766,13 +808,13 @@ public:
             d_parent->forEachIndex([&](auto &&i) { i.clear(*d_txn); });
         }
 
-        //! commit this transaction
+        //! Commits this transaction.
         void commit()
         {
             (*d_txn)->commit();
         }
 
-        //! abort this transaction
+        //! Aborts this transaction.
         void abort()
         {
             (*d_txn)->abort();

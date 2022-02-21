@@ -40,6 +40,9 @@ using string_view = boost::string_ref;
 #endif
 #endif
 
+/*!
+ * \brief The LMDBError class is thrown when an error happens.
+ */
 class LMDB_SAFE_EXPORT LMDBError : public std::runtime_error {
 public:
     explicit LMDBError(const std::string &error) noexcept
@@ -79,19 +82,24 @@ public:
 
 class MDBRWTransactionImpl;
 class MDBROTransactionImpl;
-
 using MDBROTransaction = std::unique_ptr<MDBROTransactionImpl>;
 using MDBRWTransaction = std::unique_ptr<MDBRWTransactionImpl>;
 
+/*!
+ * \brief The MDBEnv class is a handle to an MDB environment.
+ */
 class LMDB_SAFE_EXPORT MDBEnv {
 public:
     MDBEnv(const char *fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs = 10);
 
+    /*!
+     * \brief Closes the MDB environment.
+     * \remarks Only a single thread may call this function. All transactions, databases, and cursors must already be closed
+     *          before calling this function.
+     */
     ~MDBEnv()
     {
-        //    Only a single thread may call this function. All transactions, databases, and cursors must already be closed before calling this function
         mdb_env_close(d_env);
-        // but, elsewhere, docs say database handles do not need to be closed?
     }
 
     MDBDbi openDB(const string_view dbname, unsigned int flags);
@@ -119,8 +127,14 @@ private:
     std::map<std::thread::id, int> d_ROtransactionsOut;
 };
 
+/*!
+ * \brief Opens an MDB environment for the specified database file.
+ */
 LMDB_SAFE_EXPORT std::shared_ptr<MDBEnv> getMDBEnv(const char *fname, unsigned int flags, mdb_mode_t mode, MDB_dbi maxDBs = 128);
 
+/*!
+ * \brief The MDBOutVal struct is the handle to an MDB value used as output.
+ */
 struct LMDB_SAFE_EXPORT MDBOutVal {
     operator MDB_val &()
     {
@@ -170,6 +184,9 @@ template <> inline string_view MDBOutVal::get<string_view>() const
     return string_view(static_cast<char *>(d_mdbval.mv_data), d_mdbval.mv_size);
 }
 
+/*!
+ * \brief The MDBInVal struct is the handle to an MDB value used as input.
+ */
 class LMDB_SAFE_EXPORT MDBInVal {
 public:
     MDBInVal(const MDBOutVal &rhs)
@@ -226,6 +243,9 @@ private:
 
 class MDBROCursor;
 
+/*!
+ * \brief The MDBROTransactionImpl class wraps read operations.
+ */
 class LMDB_SAFE_EXPORT MDBROTransactionImpl {
 protected:
     MDBROTransactionImpl(MDBEnv *parent, MDB_txn *txn);
@@ -465,6 +485,9 @@ public:
     }
 };
 
+/*!
+ * \brief The MDBROCursor class represents a read-only cursor.
+ */
 class LMDB_SAFE_EXPORT MDBROCursor : public MDBGenCursor<MDBROTransactionImpl, MDBROCursor> {
 public:
     MDBROCursor() = default;
@@ -478,6 +501,9 @@ public:
 
 class MDBRWCursor;
 
+/*!
+ * \brief The MDBRWTransactionImpl class wraps write operations.
+ */
 class LMDB_SAFE_EXPORT MDBRWTransactionImpl : public MDBROTransactionImpl {
 protected:
     MDBRWTransactionImpl(MDBEnv *parent, MDB_txn *txn);
