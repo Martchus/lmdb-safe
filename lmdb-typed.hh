@@ -561,7 +561,37 @@ public:
             }
 
             return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
-        };
+        }
+
+        template <template <typename> class StorageType = DirectStorage> iter_t<StorageType> rbegin()
+        {
+            typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(d_parent.d_parent->d_main);
+
+            MDBOutVal out, id;
+
+            if (cursor.get(out, id, MDB_LAST)) {
+                // on_index, one_key, end
+                return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false, true };
+            }
+
+            return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
+        }
+
+        template <template <typename> class StorageType = DirectStorage> iter_t<StorageType> lower_bound(IDType id)
+        {
+            typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(d_parent.d_parent->d_main);
+
+            MDBInVal in(id);
+            MDBOutVal out, id2;
+            out.d_mdbval = in.d_mdbval;
+
+            if (cursor.get(out, id2, MDB_SET_RANGE)) {
+                // on_index, one_key, end
+                return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false, true };
+            }
+
+            return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
+        }
 
         template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<DirectStorage, IDType> begin_idx()
         {
