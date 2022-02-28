@@ -224,7 +224,7 @@ template <class Class, typename Type, class Func> struct index_on_function : LMD
  *
  * Open issues:
  * - Perhaps use the separate index concept from multi_index.
- * - Perhaps get eiter to be of same type so for(auto& a : x) works
+ * - Perhaps get either to be of same type so for(auto& a : x) works
  *   make it more value "like" with unique_ptr.
  */
 template <typename T, typename... I> class LMDB_SAFE_EXPORT TypedDBI {

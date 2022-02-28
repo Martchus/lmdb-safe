@@ -283,7 +283,7 @@ void MDBROTransactionImpl::commit()
     if (d_txn) {
         d_parent->decROTX();
         if (const auto rc = mdb_txn_commit(d_txn)) { // this appears to work better than abort for r/o database opening
-            throw LMDBError("Error comitting transaction: ", rc);
+            throw LMDBError("Error committing transaction: ", rc);
         }
         d_txn = nullptr;
     }
