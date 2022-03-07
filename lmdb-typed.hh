@@ -838,6 +838,30 @@ public:
             d_parent->forEachIndex([&](auto &&i) { i.clear(*d_txn); });
         }
 
+        //! \brief Rebuilds the database, possibly throwing out invalid objects.
+        //! \param func Specifies a function which is supposed to return whether an object is still valid.
+        //!             It might modify the passed object in order to "fix" it.
+        void rebuild(const std::function<bool(IDType id, T *obj)> &func)
+        {
+            // clear all indexes to get rid of invalid entries
+            d_parent->forEachIndex([&](auto &&i) { i.clear(*d_txn); });
+            // check all objects via func
+            for (auto i = this->begin(), end = this->end(); i != end; ++i) {
+                T *val = nullptr;
+                try {
+                    val = &i.value();
+                } catch (...) { // catch possible deserialization errors
+                }
+                if (func(i.getID(), val)) {
+                    if (val) {
+                        put(*val, i.getID());
+                    }
+                } else {
+                    i.del();
+                }
+            }
+        }
+
         //! Commits this transaction.
         void commit()
         {
