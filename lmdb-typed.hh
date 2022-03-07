@@ -807,7 +807,7 @@ public:
         }
 
         //! Modifies an item "in place" updating indexes.
-        void modify(IDType id, std::function<void(T &)> func)
+        void modify(IDType id, const std::function<void(T &)> &func)
         {
             T t;
             if (!this->get(id, t))
