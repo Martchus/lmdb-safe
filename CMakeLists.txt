@@ -16,14 +16,8 @@ set(META_VERSION_PATCH 1)
 set(META_VERSION_EXACT_SONAME ON)
 
 # add project files
-set(HEADER_FILES
-    lmdb-safe.hh
-    lmdb-typed.hh
-    lmdb-reflective.hh
-    lmdb-boost-serialization.hh)
-set(SRC_FILES
-    lmdb-safe.cc
-    lmdb-typed.cc)
+set(HEADER_FILES lmdb-safe.hh lmdb-typed.hh lmdb-reflective.hh lmdb-boost-serialization.hh)
+set(SRC_FILES lmdb-safe.cc lmdb-typed.cc)
 
 set(DOC_FILES README.md)
 
@@ -52,8 +46,24 @@ if (BOOST_STATIC_LINKAGE)
     set(Boost_USE_STATIC_LIBS ON)
 endif ()
 set(BOOST_ARGS "REQUIRED;COMPONENTS;serialization;iostreams")
-use_package(TARGET_NAME Boost::iostreams PACKAGE_NAME Boost PACKAGE_ARGS "${BOOST_ARGS}" LIBRARIES_VARIABLE "TEST_LIBRARIES")
-use_package(TARGET_NAME Boost::serialization PACKAGE_NAME Boost PACKAGE_ARGS "${BOOST_ARGS}" LIBRARIES_VARIABLE "TEST_LIBRARIES")
+use_package(
+    TARGET_NAME
+    Boost::iostreams
+    PACKAGE_NAME
+    Boost
+    PACKAGE_ARGS
+    "${BOOST_ARGS}"
+    LIBRARIES_VARIABLE
+    "TEST_LIBRARIES")
+use_package(
+    TARGET_NAME
+    Boost::serialization
+    PACKAGE_NAME
+    Boost
+    PACKAGE_ARGS
+    "${BOOST_ARGS}"
+    LIBRARIES_VARIABLE
+    "TEST_LIBRARIES")
 
 # find catch2 (required by tests)
 use_package(TARGET_NAME Catch2::Catch2 PACKAGE_NAME Catch2 LIBRARIES_VARIABLE "TEST_LIBRARIES")
@@ -63,7 +73,14 @@ use_package(TARGET_NAME Threads::Threads PACKAGE_NAME Threads LIBRARIES_VARIABLE
 
 # add test/example files to EXCLUDED_FILES so they're formatted
 set(TESTS basic typed)
-set(EXAMPLES basic multi rel resize scale typed view)
+set(EXAMPLES
+    basic
+    multi
+    rel
+    resize
+    scale
+    typed
+    view)
 foreach (TEST ${TESTS})
     list(APPEND EXCLUDED_FILES "tests/${TEST}.cc")
 endforeach ()
