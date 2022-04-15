@@ -14,14 +14,6 @@ namespace LMDBSafe {
 using IDType = std::uint32_t;
 
 /*!
- * \brief Returns the highest ID used in a database. Returns 0 for an empty DB.
- * \remarks
- * This makes us start everything at ID "1", which might make it possible to
- * treat id 0 as special.
- */
-LMDB_SAFE_EXPORT IDType MDBGetMaxID(MDBRWTransaction &txn, MDBDbi &dbi);
-
-/*!
  * \brief Converts \a t to an std::string.
  *
  * This is the serialization interface. You need to define this function for the
@@ -296,6 +288,63 @@ public:
             MDB_stat stat;
             mdb_stat(**d_parent.d_txn, std::get<N>(d_parent.d_parent->d_tuple).d_idx, &stat);
             return stat.ms_entries;
+        }
+
+        /*!
+         * \brief Returns the highest ID or 0 if the database is empty.
+         */
+        IDType maxID()
+        {
+            auto cursor = (*d_parent.d_txn)->getCursor(d_parent.d_parent->d_main);
+            MDBOutVal idval, maxcontent;
+            auto id = IDType(0);
+            if (!cursor.get(idval, maxcontent, MDB_LAST)) {
+                id = idval.get<IDType>();
+            }
+            return id;
+        }
+
+        /*!
+         * \brief Returns the next highest ID in the database.
+         * \remarks Never returns 0 so it can be used as special "no such ID" value.
+         * \throws Throws LMDBError when running out of IDs.
+         */
+        IDType nextID()
+        {
+            const auto id = maxID();
+            if (id < std::numeric_limits<IDType>::max()) {
+                return id + 1;
+            }
+            throw LMDBError("Running out of IDs");
+        }
+
+        /*!
+         * \brief Returns an ID not used in the database so far.
+         * \remarks
+         * - Lower IDs are reused but an extensive search for "gabs" is avoided.
+         * - Never returns 0 so it can be used as special "no such ID" value.
+         * \throws Throws LMDBError when running out of IDs.
+         */
+        IDType newID()
+        {
+            auto cursor = (*d_parent.d_txn)->getCursor(d_parent.d_parent->d_main);
+            MDBOutVal idval, maxcontent;
+            auto id = IDType(1);
+            if (!cursor.get(idval, maxcontent, MDB_FIRST)) {
+                id = idval.get<IDType>();
+            }
+            if (id > 1) {
+                return id - 1;
+            }
+            if (!cursor.get(idval, maxcontent, MDB_LAST)) {
+                id = idval.get<IDType>();
+            } else {
+                id = 0;
+            }
+            if (id < std::numeric_limits<IDType>::max()) {
+                return id + 1;
+            }
+            throw LMDBError("Running out of IDs");
         }
 
         //! Get item with id, from main table directly
@@ -798,7 +847,7 @@ public:
         {
             unsigned int flags = 0;
             if (!id) {
-                id = MDBGetMaxID(*d_txn, d_parent->d_main) + 1;
+                id = this->nextID();
                 flags = MDB_APPEND;
             }
             (*d_txn)->put(d_parent->d_main, id, serToString(t), flags);
