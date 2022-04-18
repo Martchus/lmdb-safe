@@ -441,7 +441,14 @@ public:
 
             void del()
             {
-                d_cursor.del();
+                auto id = this->getID();
+                auto &value = this->value();
+                if (d_on_index) {
+                    (*d_parent->d_txn)->del(d_parent->d_parent->d_main, d_data);
+                } else {
+                    d_cursor.del();
+                }
+                d_parent->d_parent->forEachIndex([&](auto &&i) { i.del(*d_parent->d_txn, value, id); });
             }
 
             bool operator!=(const eiter_t &) const
