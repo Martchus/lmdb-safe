@@ -435,7 +435,7 @@ public:
             {
                 if (d_cursor.get(d_key, d_id, MDB_GET_CURRENT))
                     d_end = true;
-                else if (d_on_index && (*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
+                else if ((*d_parent->d_txn)->get(d_parent->d_parent->d_main, d_id, d_data))
                     throw LMDBError("Missing id in constructor");
             }
 
