@@ -405,7 +405,7 @@ public:
          *   via getPointer(). Note that the returned pointer object is re-used when the iterator is incremented
          *   or decremented unless the owned object is moved into another pointer object.
          */
-        template <template <typename> class StorageType, typename ElementType = T> struct iter_t {
+        template <template <typename...> class StorageType, typename ElementType = T> struct iter_t {
             using UsingDirectStorage = CppUtilities::Traits::IsSpecializationOf<StorageType<ElementType>, DirectStorage>;
 
             explicit iter_t(Parent *parent, typename Parent::cursor_t &&cursor, bool on_index, bool one_key, bool end = false)
