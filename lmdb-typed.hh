@@ -6,6 +6,8 @@
 #include <c++utilities/conversion/conversionexception.h>
 #include <c++utilities/conversion/stringbuilder.h>
 
+#include <functional>
+
 namespace LMDBSafe {
 
 /*!
