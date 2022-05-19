@@ -350,12 +350,12 @@ public:
         }
 
         //! Get item with id, from main table directly
-        bool get(IDType id, T &t)
+        template <typename ElementType = T> bool get(IDType id, ElementType &t)
         {
-            MDBOutVal data;
-            if ((*d_parent.d_txn)->get(d_parent.d_parent->d_main, id, data))
+            auto data = MDBOutVal();
+            if ((*d_parent.d_txn)->get(d_parent.d_parent->d_main, id, data)) {
                 return false;
-
+            }
             serFromString(data.get<string_view>(), t);
             return true;
         }
@@ -363,10 +363,12 @@ public:
         //! Get item through index N, then via the main database
         template <std::size_t N> IDType get(const index_t<N> &key, T &out)
         {
-            MDBOutVal id;
-            if (!(*d_parent.d_txn)->get(std::get<N>(d_parent.d_parent->d_tuple).d_idx, keyConv(key), id)) {
-                if (get(id.get<IDType>(), out))
-                    return id.get<IDType>();
+            auto idValue = MDBOutVal();
+            if (!(*d_parent.d_txn)->get(std::get<N>(d_parent.d_parent->d_tuple).d_idx, keyConv(key), idValue)) {
+                const auto id = idValue.get<IDType>();
+                if (get(id, out)) {
+                    return id;
+                }
             }
             return 0;
         }
@@ -583,85 +585,74 @@ public:
             CppUtilities::Traits::Conditional<UsingDirectStorage, ElementType, StorageType<ElementType>> d_t;
         };
 
-        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> genbegin(MDB_cursor_op op)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage, typename ElementType = T>
+        iter_t<StorageType> genbegin(MDB_cursor_op op)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
-
             MDBOutVal out, id;
-
             if (cursor.get(out, id, op)) {
                 // on_index, one_key, end
-                return iter_t<StorageType>{ &d_parent, std::move(cursor), true, false, true };
+                return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), true, false, true };
             }
-
             return iter_t<StorageType>{ &d_parent, std::move(cursor), true, false };
         };
 
-        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> begin()
+        template <std::size_t N, template <typename> class StorageType = DirectStorage, typename ElementType = T>
+        iter_t<StorageType, ElementType> begin()
         {
-            return genbegin<N, StorageType>(MDB_FIRST);
+            return genbegin<N, StorageType, ElementType>(MDB_FIRST);
         }
 
-        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> rbegin()
+        template <std::size_t N, template <typename> class StorageType = DirectStorage, typename ElementType = T>
+        iter_t<StorageType, ElementType> rbegin()
         {
-            return genbegin<N, StorageType>(MDB_LAST);
+            return genbegin<N, StorageType, ElementType>(MDB_LAST);
         }
 
-        template <template <typename> class StorageType = DirectStorage> iter_t<StorageType> begin()
+        template <template <typename> class StorageType = DirectStorage, typename ElementType = T> iter_t<StorageType, ElementType> begin()
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(d_parent.d_parent->d_main);
-
             MDBOutVal out, id;
-
             if (cursor.get(out, id, MDB_FIRST)) {
                 // on_index, one_key, end
-                return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false, true };
+                return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), false, false, true };
             }
-
-            return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
+            return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), false, false };
         }
 
-        template <template <typename> class StorageType = DirectStorage> iter_t<StorageType> rbegin()
+        template <template <typename> class StorageType = DirectStorage, typename ElementType = T> iter_t<StorageType, ElementType> rbegin()
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(d_parent.d_parent->d_main);
-
             MDBOutVal out, id;
-
             if (cursor.get(out, id, MDB_LAST)) {
                 // on_index, one_key, end
-                return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false, true };
+                return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), false, false, true };
             }
-
-            return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
+            return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), false, false };
         }
 
-        template <template <typename> class StorageType = DirectStorage> iter_t<StorageType> lower_bound(IDType id)
+        template <template <typename> class StorageType = DirectStorage, typename ElementType = T>
+        iter_t<StorageType, ElementType> lower_bound(IDType id)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(d_parent.d_parent->d_main);
-
             MDBInVal in(id);
             MDBOutVal out, id2;
             out.d_mdbval = in.d_mdbval;
-
             if (cursor.get(out, id2, MDB_SET_RANGE)) {
                 // on_index, one_key, end
-                return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false, true };
+                return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), false, false, true };
             }
-
-            return iter_t<StorageType>{ &d_parent, std::move(cursor), false, false };
+            return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), false, false };
         }
 
         template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<DirectStorage, IDType> begin_idx()
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
-
             MDBOutVal out, id;
-
             if (cursor.get(out, id, MDB_FIRST)) {
                 // on_index, one_key, end
                 return iter_t<DirectStorage, IDType>{ &d_parent, std::move(cursor), false, false, true };
             }
-
             return iter_t<DirectStorage, IDType>{ &d_parent, std::move(cursor), false, false };
         }
 
@@ -671,70 +662,63 @@ public:
         }
 
         // basis for find, lower_bound
-        template <std::size_t N, template <typename> class StorageType>
+        template <std::size_t N, template <typename> class StorageType, typename ElementType = T>
         iter_t<StorageType> genfind(const typename std::tuple_element<N, tuple_t>::type::type &key, MDB_cursor_op op)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
-
             const auto keystr = keyConv(key);
             MDBInVal in(keystr);
             MDBOutVal out, id;
             out.d_mdbval = in.d_mdbval;
-
             if (cursor.get(out, id, op)) {
                 // on_index, one_key, end
-                return iter_t<StorageType>{ &d_parent, std::move(cursor), true, false, true };
+                return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), true, false, true };
             }
-
-            return iter_t<StorageType>{ &d_parent, std::move(cursor), true, false };
+            return iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), true, false };
         };
 
-        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> find(const index_t<N> &key)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage, typename ElementType = T>
+        iter_t<StorageType, ElementType> find(const index_t<N> &key)
         {
-            return genfind<N, StorageType>(key, MDB_SET);
+            return genfind<N, StorageType, ElementType>(key, MDB_SET);
         }
 
-        template <std::size_t N, template <typename> class StorageType = DirectStorage> iter_t<StorageType> lower_bound(const index_t<N> &key)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage, typename ElementType = T>
+        iter_t<StorageType, ElementType> lower_bound(const index_t<N> &key)
         {
-            return genfind<N, StorageType>(key, MDB_SET_RANGE);
+            return genfind<N, StorageType, ElementType>(key, MDB_SET_RANGE);
         }
 
         //! Returns the range matching the specified \a key.
-        template <std::size_t N, template <typename> class StorageType = DirectStorage>
-        std::pair<iter_t<StorageType>, eiter_t> equal_range(const index_t<N> &key)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage, typename ElementType = T>
+        std::pair<iter_t<StorageType, ElementType>, eiter_t> equal_range(const index_t<N> &key)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
-
             const auto keyString = keyConv(key);
             MDBInVal in(keyString);
             MDBOutVal out, id;
             out.d_mdbval = in.d_mdbval;
-
             if (cursor.get(out, id, MDB_SET)) {
                 // on_index, one_key, end
-                return { iter_t<StorageType>{ &d_parent, std::move(cursor), true, true, true }, eiter_t() };
+                return { iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), true, true, true }, eiter_t() };
             }
-
-            return { iter_t<StorageType>{ &d_parent, std::move(cursor), true, true }, eiter_t() };
+            return { iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), true, true }, eiter_t() };
         };
 
         //! Returns the range where the key starts with the specified \a key.
-        template <std::size_t N, template <typename> class StorageType = DirectStorage>
-        std::pair<iter_t<StorageType>, eiter_t> prefix_range(const index_t<N> &key)
+        template <std::size_t N, template <typename> class StorageType = DirectStorage, typename ElementType = T>
+        std::pair<iter_t<StorageType, ElementType>, eiter_t> prefix_range(const index_t<N> &key)
         {
             typename Parent::cursor_t cursor = (*d_parent.d_txn)->getCursor(std::get<N>(d_parent.d_parent->d_tuple).d_idx);
-
             const auto keyString = keyConv(key);
             MDBInVal in(keyString);
             MDBOutVal out, id;
             out.d_mdbval = in.d_mdbval;
-
             if (cursor.get(out, id, MDB_SET_RANGE)) {
                 // on_index, one_key, end
-                return { iter_t<StorageType>{ &d_parent, std::move(cursor), true, true, true }, eiter_t() };
+                return { iter_t<StorageType, ElementType>{ &d_parent, std::move(cursor), true, true, true }, eiter_t() };
             }
-
-            return { iter_t<StorageType>(&d_parent, std::move(cursor), keyString), eiter_t() };
+            return { iter_t<StorageType, ElementType>(&d_parent, std::move(cursor), keyString), eiter_t() };
         };
 
         Parent &d_parent;
@@ -852,7 +836,7 @@ public:
         }
 
         //! Inserts something, with possibly a specific id.
-        IDType put(const T &t, IDType id = 0)
+        template <typename ElementType = T> IDType put(const ElementType &t, IDType id = 0)
         {
             unsigned int flags = 0;
             if (!id) {
@@ -865,24 +849,28 @@ public:
         }
 
         //! Modifies an item "in place" updating indexes.
-        void modify(IDType id, const std::function<void(T &)> &func)
+        template <typename ElementType = T> void modify(IDType id, const std::function<void(ElementType &)> &func)
         {
-            T t;
-            if (!this->get(id, t))
+            auto t = ElementType();
+            if (!this->get(id, t)) {
                 throw LMDBError("Could not modify id " + std::to_string(id));
+            }
             func(t);
-
             del(id); // this is the lazy way. We could test for changed index fields
             put(t, id);
         }
+        void modify(IDType id, const std::function<void(T &)> &func)
+        {
+            modify<T>(id, func);
+        }
 
         //! Deletes an item from the main database and from indexes.
-        void del(IDType id)
+        template <typename ElementType = T> void del(IDType id)
         {
-            T t;
-            if (!this->get(id, t))
+            auto t = ElementType();
+            if (!this->get(id, t)) {
                 return;
-
+            }
             (*d_txn)->del(d_parent->d_main, id);
             clearIndex(id, t);
         }
@@ -941,7 +929,7 @@ public:
 
     private:
         // clear this ID from all indexes
-        void clearIndex(IDType id, const T &t)
+        template <typename ElementType = T> void clearIndex(IDType id, const ElementType &t)
         {
             d_parent->forEachIndex([&](auto &&i) { i.del(*d_txn, t, id); });
         }
