@@ -213,6 +213,7 @@ struct index_on_base_member : LMDBIndexOps<Class, Type, index_on_base_member<Cla
 /*!
  * \brief The index_on_function struct is used to declare an index which is dynamically computed via
  *        a function.
+ * \remarks This struct makes likely not much sense in its current form.
  */
 template <class Class, typename Type, class Func> struct index_on_function : LMDBIndexOps<Class, Type, index_on_function<Class, Type, Func>> {
     index_on_function()
