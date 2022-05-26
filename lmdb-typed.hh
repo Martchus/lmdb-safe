@@ -178,7 +178,7 @@ template <class Class, typename Type, typename Parent> struct LMDB_SAFE_EXPORT L
 };
 
 /*!
- * \brief The index_on struct is used to declare an index on a member variable of a particular type.
+ * \brief The index_on struct is used to declare an index on a member variable of a particular class.
  */
 template <class Class, typename Type, Type Class::*PtrToMember> struct index_on : LMDBIndexOps<Class, Type, index_on<Class, Type, PtrToMember>> {
     index_on()
@@ -186,6 +186,23 @@ template <class Class, typename Type, Type Class::*PtrToMember> struct index_on 
     {
     }
     static Type getMember(const Class &c)
+    {
+        return c.*PtrToMember;
+    }
+
+    typedef Type type;
+};
+
+/*!
+ * \brief The index_on_base_member struct is used to declare an index on a member variable of a base class of a particular class.
+ */
+template <class Class, typename Type, class BaseClass, Type BaseClass::*PtrToMember>
+struct index_on_base_member : LMDBIndexOps<Class, Type, index_on_base_member<Class, Type, BaseClass, PtrToMember>> {
+    index_on_base_member()
+        : LMDBIndexOps<Class, Type, index_on_base_member<Class, Type, BaseClass, PtrToMember>>(this)
+    {
+    }
+    static Type getMember(const BaseClass &c)
     {
         return c.*PtrToMember;
     }
