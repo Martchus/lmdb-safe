@@ -379,12 +379,12 @@ public:
         }
 
         //! Get item through index N, then via the main database
-        template <std::size_t N> IDType get(const index_t<N> &key, T &out)
+        template <std::size_t N, typename ElementType = T> IDType get(const index_t<N> &key, ElementType &out)
         {
             auto idValue = MDBOutVal();
             if (!(*d_parent.d_txn)->get(std::get<N>(d_parent.d_parent->d_tuple).d_idx, keyConv(key), idValue)) {
                 const auto id = idValue.get<IDType>();
-                if (get(id, out)) {
+                if (get<ElementType>(id, out)) {
                     return id;
                 }
             }
