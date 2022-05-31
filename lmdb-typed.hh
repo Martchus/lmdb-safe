@@ -885,12 +885,16 @@ public:
         //! Deletes an item from the main database and from indexes.
         template <typename ElementType = T> void del(IDType id)
         {
-            auto t = ElementType();
-            if (!this->get(id, t)) {
-                return;
+            if constexpr (std::tuple_size_v<tuple_t>) {
+                auto t = ElementType();
+                if (!this->get(id, t)) {
+                    return;
+                }
+                (*d_txn)->del(d_parent->d_main, id);
+                clearIndex(id, t);
+            } else {
+                (*d_txn)->del(d_parent->d_main, id);
             }
-            (*d_txn)->del(d_parent->d_main, id);
-            clearIndex(id, t);
         }
 
         //! Clears the database and indexes.
