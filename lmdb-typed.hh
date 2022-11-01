@@ -824,7 +824,7 @@ public:
             d_txn = std::make_shared<MDBRWTransaction>(d_parent->d_env->getRWTransaction());
         }
 
-        explicit RWTransaction(TypedDBI *parent, std::shared_ptr<MDBRWTransaction> txn)
+        explicit RWTransaction(TypedDBI *parent, const std::shared_ptr<MDBRWTransaction> &txn)
             : ReadonlyOperations<RWTransaction>(*this)
             , d_parent(parent)
             , d_txn(txn)
@@ -973,13 +973,13 @@ public:
     }
 
     //! Get an RW transaction
-    RWTransaction getRWTransaction(std::shared_ptr<MDBRWTransaction> txn)
+    RWTransaction getRWTransaction(const std::shared_ptr<MDBRWTransaction> &txn)
     {
         return RWTransaction(this, txn);
     }
 
     //! Get an RO transaction
-    ROTransaction getROTransaction(std::shared_ptr<MDBROTransaction> txn)
+    ROTransaction getROTransaction(const std::shared_ptr<MDBROTransaction> &txn)
     {
         return ROTransaction(this, txn);
     }
