@@ -67,6 +67,10 @@ use_package(
 
 # find catch2 (required by tests)
 use_package(TARGET_NAME Catch2::Catch2 PACKAGE_NAME Catch2 LIBRARIES_VARIABLE "TEST_LIBRARIES")
+if (Catch2_VERSION VERSION_GREATER_EQUAL 3)
+    list(APPEND CATCH2_DEFINITIONS CATCH2_SPLIT_HEADERS)
+    list(APPEND TEST_LIBRARIES Catch2::Catch2WithMain)
+endif ()
 
 # find threading library (required by examples)
 use_package(TARGET_NAME Threads::Threads PACKAGE_NAME Threads LIBRARIES_VARIABLE "TEST_LIBRARIES")
@@ -100,6 +104,7 @@ include(TestUtilities)
 list(APPEND TEST_LIBRARIES ${META_TARGET_NAME})
 foreach (TEST ${TESTS})
     configure_test_target(TEST_NAME "${TEST}_tests" SRC_FILES "tests/${TEST}.cc" LIBRARIES "${TEST_LIBRARIES}")
+    target_compile_definitions("${META_TARGET_NAME}_${TEST}_tests" PRIVATE "${CATCH2_DEFINITIONS}")
 endforeach ()
 foreach (EXAMPLE ${EXAMPLES})
     configure_test_target(TEST_NAME "${EXAMPLE}_example" SRC_FILES "examples/${EXAMPLE}.cc" LIBRARIES "${TEST_LIBRARIES}")

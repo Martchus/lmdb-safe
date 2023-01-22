@@ -1,7 +1,11 @@
 #include "../lmdb-safe.hh"
 
-#define CATCH_CONFIG_MAIN
+#define CATCH_CONFIG_MAIN // for catch2 < 3
+#ifdef CATCH2_SPLIT_HEADERS
+#include <catch2/catch_all.hpp>
+#else
 #include <catch2/catch.hpp>
+#endif
 
 #include <c++utilities/application/global.h>
 
