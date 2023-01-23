@@ -411,8 +411,7 @@ public:
         struct eiter_t {};
 
         //! Store the object as immediate member of iter_t (as opposed to using an std::unique_ptr or std::shared_ptr)
-        template <typename> struct DirectStorage {
-        };
+        template <typename> struct DirectStorage {};
 
         /*!
          * \brief The iter_t struct is the iterator type for walking through the database rows.
