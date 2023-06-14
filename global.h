@@ -1,10 +1,12 @@
-// Created via CMake from template global.h.in
-// WARNING! Any changes to this file will be overwritten by the next CMake run!
-
 #ifndef LMDB_SAFE_GLOBAL
 #define LMDB_SAFE_GLOBAL
 
+#ifndef LMDB_SAFE_NO_CPP_UTILITIES
 #include <c++utilities/application/global.h>
+#else
+#undef LMDB_SAFE_STATIC
+#define LMDB_SAFE_STATIC 1
+#endif
 
 #ifdef LMDB_SAFE_STATIC
 #define LMDB_SAFE_EXPORT
