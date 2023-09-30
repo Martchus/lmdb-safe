@@ -488,7 +488,7 @@ public:
 
             StorageType<ElementType> &allocatePointer()
             {
-                static_assert(!UsingDirectStorage::value, "Cannot call getPointer() when using direct storage.");
+                static_assert(!UsingDirectStorage::value, "Cannot call allocatePointer() when using direct storage.");
                 static_assert(CppUtilities::Traits::IsSpecializingAnyOf<StorageType<ElementType>, std::unique_ptr, std::shared_ptr>(),
                     "Pointer type not supported.");
                 if (d_t != nullptr) {
