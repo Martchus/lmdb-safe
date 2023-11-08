@@ -111,7 +111,7 @@ template <> inline void serFromString<>(string_view str, std::uint64_t &ret)
 /*!
  * \brief Converts \a t to an std::string.
  *
- * This is the serialization interface for keys. You need to define your this function
+ * This is the serialization interface for keys. You need to define this function
  * for the types you'd like to use as keys.
  */
 template <class T, class Enable> inline std::string keyConv(const T &t);
