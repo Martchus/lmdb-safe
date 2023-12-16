@@ -141,7 +141,7 @@ struct LMDB_SAFE_EXPORT MDBOutVal {
         return d_mdbval;
     }
 
-    template <class T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type * = nullptr> const T get()
+    template <class T, typename std::enable_if<std::is_arithmetic<T>::value, T>::type * = nullptr> T get() const
     {
         T ret;
         if (d_mdbval.mv_size != sizeof(T))
