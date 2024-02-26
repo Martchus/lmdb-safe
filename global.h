@@ -4,6 +4,7 @@
 #ifndef LMDB_SAFE_GLOBAL
 #define LMDB_SAFE_GLOBAL
 
+#include "lmdb-safe-definitions.h"
 #include <c++utilities/application/global.h>
 
 #ifdef LMDB_SAFE_STATIC
