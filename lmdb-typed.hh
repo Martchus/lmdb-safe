@@ -876,7 +876,6 @@ public:
                 throw LMDBError("Could not modify id " + std::to_string(id));
             }
             func(t);
-            del(id); // this is the lazy way. We could test for changed index fields
             put(t, id);
         }
         void modify(IDType id, const std::function<void(T &)> &func)
