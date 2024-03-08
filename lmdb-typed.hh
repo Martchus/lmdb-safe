@@ -858,6 +858,10 @@ public:
             if (!id) {
                 id = this->nextID();
                 flags = MDB_APPEND;
+            } else if constexpr (std::tuple_size_v<tuple_t>) {
+                if (auto existing = ElementType(); this->get(id, existing)) {
+                    clearIndex(id, existing);
+                }
             }
             (*d_txn)->put(d_parent->d_main, id, serToString(t), flags);
             d_parent->forEachIndex([&](auto &&i) { i.put(*d_txn, t, id); });
