@@ -157,7 +157,8 @@ template <class Class, typename Type, typename Parent> struct LMDB_SAFE_EXPORT L
 
     void del(MDBRWTransaction &txn, const Class &t, IDType id)
     {
-        if (const auto rc = txn->del(d_idx, keyConv(d_parent->getMember(t)), id)) {
+        const auto rc = txn->del(d_idx, keyConv(d_parent->getMember(t)), id);
+        if (rc && rc != MDB_NOTFOUND) {
             throw LMDBError("Error deleting from index: ", rc);
         }
     }

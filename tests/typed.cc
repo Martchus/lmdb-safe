@@ -104,5 +104,13 @@ TEST_CASE("Basic typed tests", "[basictyped]")
     REQUIRE(out.lastName == "testperson");
     REQUIRE(out.enrolled == m.enrolled);
 
+    // rebuild the database
+    txn.rebuild([] (IDType, Member *member) {
+        return member->firstName != "bertus";
+    });
+    REQUIRE(txn.size() == 2);
+    REQUIRE(txn.size<0>() == txn.size());
+    REQUIRE(!txn.get<0>("bertus", out));
+
     txn.abort();
 }
