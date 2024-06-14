@@ -29,19 +29,19 @@ struct DomainInfo {
 template <class Archive> void serialize(Archive &ar, DomainInfo &g, const unsigned int version)
 {
     CPP_UTILITIES_UNUSED(version)
-    ar &g.qname &g.master;
+    ar & g.qname & g.master;
 }
 
 template <class Archive> void serialize(Archive &ar, DNSResourceRecord &g, const unsigned int version)
 {
     CPP_UTILITIES_UNUSED(version)
-    ar &g.qtype;
-    ar &g.qname;
-    ar &g.content;
-    ar &g.ttl;
-    ar &g.domain_id;
-    ar &g.ordername;
-    ar &g.auth;
+    ar & g.qtype;
+    ar & g.qname;
+    ar & g.content;
+    ar & g.ttl;
+    ar & g.domain_id;
+    ar & g.ordername;
+    ar & g.auth;
 }
 
 struct compound {

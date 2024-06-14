@@ -17,7 +17,7 @@ struct Record {
     template <class Archive> void serialize(Archive &ar, const unsigned int version)
     {
         CPP_UTILITIES_UNUSED(version)
-        ar &id &domain_id &name &type &ttl &content &enabled &auth;
+        ar & id & domain_id & name & type & ttl & content & enabled & auth;
     }
 
     unsigned int id;

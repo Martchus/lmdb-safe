@@ -26,7 +26,7 @@ struct Member {
 template <class Archive> void serialize(Archive &ar, Member &g, const unsigned int version)
 {
     CPP_UTILITIES_UNUSED(version)
-    ar &g.firstName &g.lastName &g.enrolled;
+    ar & g.firstName & g.lastName & g.enrolled;
 }
 
 TEST_CASE("Basic typed tests", "[basictyped]")
@@ -97,7 +97,7 @@ TEST_CASE("Basic typed tests", "[basictyped]")
     REQUIRE(out.lastName == "testperson");
 
     // modify existing row via modify function
-    txn.modify(3, [] (Member &member) { member.firstName = "yetanother"; });
+    txn.modify(3, [](Member &member) { member.firstName = "yetanother"; });
     REQUIRE(!txn.get<0>("another", out));
     REQUIRE(txn.get<0>("yetanother", out));
     REQUIRE(out.firstName == "yetanother");
@@ -105,9 +105,7 @@ TEST_CASE("Basic typed tests", "[basictyped]")
     REQUIRE(out.enrolled == m.enrolled);
 
     // rebuild the database
-    txn.rebuild([] (IDType, Member *member) {
-        return member->firstName != "bertus";
-    });
+    txn.rebuild([](IDType, Member *member) { return member->firstName != "bertus"; });
     REQUIRE(txn.size() == 2);
     REQUIRE(txn.size<0>() == txn.size());
     REQUIRE(!txn.get<0>("bertus", out));
